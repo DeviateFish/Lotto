@@ -4,13 +4,18 @@ contract Owned {
   address owner;
 
   modifier onlyOwner {
-    if (msg.sender != owner)
-        throw;
+    if (msg.sender != owner) {
+      throw;
+    }
     _;
   }
 
   function Owned() {
     owner = msg.sender;
+  }
+
+  function transferOwnership(address newOwner) onlyOwner {
+    owner = newOwner;
   }
 
   function shutdown() onlyOwner {
