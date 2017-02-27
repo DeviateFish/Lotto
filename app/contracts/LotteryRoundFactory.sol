@@ -5,23 +5,19 @@ import "LotteryRound.sol";
 
 contract LotteryRoundFactory is Owned {
 
+  string public VERSION = '0.1.0';
+
   event LotteryRoundCreated(
     address newRound
   );
 
   function createRound(
     bytes32 _saltHash, 
-    bytes32 _saltNHash,
-    uint256 _closingBlock,
-    uint16 _payoutFraction,
-    uint256 _ticketPrice
+    bytes32 _saltNHash
   ) onlyOwner returns(address) {
     LotteryRound newRound = new LotteryRound(
       _saltHash,
-      _saltNHash,
-      _closingBlock,
-      _payoutFraction,
-      _ticketPrice
+      _saltNHash
     );
   	if (newRound == LotteryRound(0)) {
       throw;

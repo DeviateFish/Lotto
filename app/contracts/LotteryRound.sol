@@ -25,22 +25,44 @@ contract LotteryRound is Owned {
     _;
   }
 
+  event LotteryRoundStarted(
+    bytes32 saltHash,
+    bytes32 saltNHash,
+    uint256 closingBlock,
+    string version
+  );
   event LotteryRoundDraw(
-    address indexed ticketHolder, 
-    bytes5 indexed picks
+    address indexed ticketHolder,
+    bytes4 indexed picks
   );
   event LotteryRoundCompleted(
     bytes32 salt,
     uint8 N,
-    bytes5 indexed winningPick
+    bytes4 indexed winningPick
   );
   event LotteryRoundWinner(
-    address indexed ticketHolder
-    bytes5 indexed picks
+    address indexed ticketHolder,
+    bytes4 indexed picks
   );
 
+  /*
+    Public static variables
+   */
+  // public version string
   string public VERSION = '0.1.0';
-  
+
+  // round length
+  uint256 public ROUND_LENGTH = 10000;
+
+  // payout fraction (in thousandths):
+  uint256 public PAYOUT_FRACTION = 990;
+
+  // Cost per ticket
+  uint public TICKET_PRICE = 1 finney;
+
+  /*
+    Public variables
+   */
   // Pre-selected salt, hashed N times
   // serves as proof-of-salt
   bytes32 public saltHash;
@@ -53,20 +75,8 @@ contract LotteryRound is Owned {
   // closing time.
   uint256 public closingBlock;
 
-  // percentage (thousandths) of the balance to be paid out.
-  uint16 public payoutFraction;
-
-  // Price per ticket.
-  uint256 public ticketPrice;
-
-  mapping(bytes5 => address[]) public tickets;
-  uint256 public nTickets = 0;
-
-  // index to keep track of randomly-drawn numbers.
-  uint256 private randomIndex = 0;
-
   // winning numbers
-  bytes5 public winningNumbers;
+  bytes4 public winningNumbers;
 
   // This becomes true when the numbers have been picked
   bool public winningNumbersPicked = false;
@@ -77,8 +87,27 @@ contract LotteryRound is Owned {
   // Stores a flag to signal if the winner has winnings to be claimed
   mapping(address => bool) public winningsClaimable;
 
+  /**
+   * Current picks are from 0 to 127, or 2^7 - 1.
+   * Current number of picks is 4
+   * Rough odds of winning will be 1 in (2^7)^4, assuming even distributions, etc
+   */
+  mapping(bytes4 => address[]) public tickets;
+  uint256 public nTickets = 0;
+
+  // Set when winners are drawn, and represents the amount of the contract's current balance that can be paid out.
   uint256 public prizePool;
+
+  // Set when winners are drawn, and signifies the amount each winner will receive.  In the event of multiple
+  // winners, this will be prizePool / winners.length
   uint256 public prizeValue;
+
+  // The fee at the time winners were picked (if there were winners).  This is the portion of the contract's balance
+  // that goes to the contract owner.
+  uint256 public ownerFee;
+
+  // This will be the sha3 hash of the previous entropy + some additional inputs (e.g. randomly-generated hashes, etc)
+  bytes32 private accumulatedEntropy;
 
   /**
    * Creates a new Lottery round, and sets the round's parameters.
@@ -86,34 +115,23 @@ contract LotteryRound is Owned {
    * Note that this will implicitly set the factory to be the owner,
    * meaning the factory will need to be able to transfer ownership,
    * to its owner, the C&C contract.
-   * 
-   * @param {bytes32} _saltHash       Hashed salt.  Will be hashed with sha3 N times
-   * @param {bytes32} _saltNHash      Hashed proof of N, in the format sha3(salt+N+salt)
-   * @param {uint256} _closingBlock   Block after which purchasing tickets is disallowed, and drawing winning numbers
-   *                                  becomes enabled.
-   * @param {uint16}  _payoutFraction How much of the earnings the winner wins.  This will probably be replaced by a
-   *                                  tiered payout system, where N winning numbers nets some smaller fractions, and
-   *                                  the total payout adds up to roughly the payout fraction.
-   * @param {uint256} _ticketPrice    How much it costs to pick numbers.  It doesn't cost more to have the contract
-   *                                  pick random numbers for you, since you pay the gas.
+   *
+   * @param _saltHash       Hashed salt.  Will be hashed with sha3 N times
+   * @param _saltNHash      Hashed proof of N, in the format sha3(salt+N+salt)
    */
   function LotteryRound(
-    bytes32 _saltHash, 
-    bytes32 _saltNHash,
-    uint256 _closingBlock,
-    uint16 _payoutFraction,
-    uint256 _ticketPrice
-  ) {
-    // payoutFraction is a ratio out of 1000,
-    // so it can't be greater than 1000
-    if (_payoutFraction > 1000) {
-      throw;
-    }
+    bytes32 _saltHash,
+    bytes32 _saltNHash
+  ) payable {
     saltHash = _saltHash;
     saltNHash = _saltNHash;
-    closingBlock = _closingBlock;
-    payoutFraction = _payoutFraction;
-    ticketPrice = _ticketPrice;
+    closingBlock = block.number + ROUND_LENGTH;
+    LotteryRoundStarted(
+      saltHash,
+      saltNHash,
+      closingBlock,
+      VERSION
+    );
   }
 
   // Man! What do I look like? A charity case?
@@ -123,49 +141,57 @@ contract LotteryRound is Owned {
     throw;
   }
 
-  function pickTicket(bytes5 picks) payable beforeClose {
-    if (msg.value != ticketPrice) {
+  /**
+   * Buy a ticket with pre-selected picks
+   * @param picks User's picks.
+   */
+  function pickTicket(bytes4 picks) payable beforeClose {
+    if (msg.value != TICKET_PRICE) {
       throw;
+    }
+    // don't allow invalid picks.
+    for (uint8 i = 0; i < 4; i++) {
+      if (picks[i] & 0x7f != picks[i]) {
+        throw;
+      }
     }
     tickets[picks].push(msg.sender);
     nTickets++;
     LotteryRoundDraw(msg.sender, picks);
   }
 
-  function pickValues(bytes32 seed) internal returns bytes5 {
-    bytes5 picks;
+  function pickValues(bytes32 seed) internal returns (bytes4) {
+    bytes4 picks;
     uint8 offset;
-    for (var i = 0; i < 5; i++) {
-      offset = seed[0] % 32;
+    for (uint8 i = 0; i < 4; i++) {
+      offset = uint8(seed[0]) & 0x1f;
       seed = sha3(seed, msg.sender);
-      picks[i] = seed[offset] % 256;
+      picks = (picks >> 8) | bytes1(uint8(seed[offset]) & 0x7f);
     }
     return picks;
   }
 
   function randomTicket() payable beforeClose {
-    if (msg.value != ticketPrice) {
+    if (msg.value != TICKET_PRICE) {
       throw;
     }
-    uint8 blockmax = 255;
-    // this is just for sanity and/or ease of testing:
-    if (block.number < 256) {
-      blockmax = block.number - 1;
-    }
-    bytes32 pseudoRandomOffset = sha256(
-      msg.sender, 
-      block.number, 
-      randomIndex++
-    ) % blockmax;
+    uint8 pseudoRandomOffset = uint8(uint256(sha256(
+      msg.sender,
+      block.number,
+      accumulatedEntropy
+    )) & 0xff);
+    // WARNING: This assumes block.number > 256
     uint256 pseudoRandomBlock = block.number - pseudoRandomOffset - 1;
     bytes32 pseudoRand = sha3(
-      block.number, 
-      block.blockhash(pseudoRandomBlock), 
-      msg.sender
+      block.number,
+      block.blockhash(pseudoRandomBlock),
+      msg.sender,
+      accumulatedEntropy
     );
-    bytes5 picks = pickValues(pseudoRand);
+    bytes4 picks = pickValues(pseudoRand);
     tickets[picks].push(msg.sender);
-    LotterRoundDraw(msg.sender, picks);
+    accumulatedEntropy = sha3(accumulatedEntropy, pseudoRand);
+    LotteryRoundDraw(msg.sender, picks);
   }
 
   function proofOfSalt(bytes32 salt, uint8 N) constant returns(bool) {
@@ -191,58 +217,64 @@ contract LotteryRound is Owned {
     if (winningNumbersPicked == true) {
       throw;
     }
-    // Neither of these proofs is technically necessary, since these can be verified offline.  If gas costs for 
-    // picking winning numbers (and/or paying winners) become prohibitive, these will probably be removed.
+
     if (proofOfSalt(salt, N) != true) {
       throw;
     }
 
-    // this is just for sanity and/or ease of testing:
-    if (block.number < 256) {
-      blockmax = block.number - 1;
-    }
-    uint8 pseudoRandomOffset = sha256(
+    uint8 pseudoRandomOffset = uint8(uint256(sha256(
       salt,
-      randomIndex,
-      nTickets
-    ) % blockmax;
+      accumulatedEntropy
+    )) & 0xff);
+    // WARNING: This assumes block.number > 256
     uint256 pseudoRandomBlock = block.number - pseudoRandomOffset - 1;
-    if (saltNHash != saltRoundsHash)
     bytes32 pseudoRand = sha3(
       salt,
-      block.blockhash(pseudoRandomBlock), 
-      nTickets
+      block.blockhash(pseudoRandomBlock),
+      accumulatedEntropy
     );
     winningNumbers = pickValues(pseudoRand);
     winningNumbersPicked = true;
     LotteryRoundCompleted(salt, N, winningNumbers);
+
     winners = tickets[winningNumbers];
     // if we have winners:
     if (winners.length > 0) {
       // now let's wrap this up by finalizing the prize pool value:
-      prizePool = this.balance * payoutFraction / 1000;
+      // There may be some rounding errors in here, but it should only amount to a couple wei.
+      prizePool = this.balance * PAYOUT_FRACTION / 1000;
       prizeValue = prizePool / winners.length;
+      ownerFee = this.balance - prizePool;
 
       // and broadcast the winners:
       for (uint i = 0; i < winners.length; i++) {
         address winner = winners[i];
         winningsClaimable[winner] = true;
-        LotteryRoundWinner(winners, winningNumbers);
+        LotteryRoundWinner(winner, winningNumbers);
       }
     }
     // we done.
   }
 
-  // override this so we can only withdraw the surplus, and only after the drawing has completed:
+  // Override this so we can only withdraw the surplus, and only after the drawing has completed:
+  // Also clears the owner fee, so the fee can only be withdrawn once.
   function withdraw() onlyOwner afterDraw {
-    // TODO: bounds checking, maybe?
-    // payoutFraction is, by definition, 1000 or less, and is set when the drawing is completed. the contract is 
-    // only payable before the drawing, so balance should never decrease (outside the use of this function), which 
-    // implies that this.balance should always be >= prizePool
-    uint256 surplus = this.balance - prizePool;
+    if (ownerFee > 0) {
+      uint256 value = ownerFee;
+      ownerFee = 0;
+      if (!owner.send(value)) {
+        throw;
+      }
+    }
+  }
 
-    if (surplus > 0 && !owner.send(surplus)) {
-      throw;
+  // Override this one, too, so that we can only shut this thing down if there are either no winners,
+  // or the winners have all been paid.  Once everything is paid out, there might be a few wei in here due to
+  // rounding errors, etc, so we use this to clean that shit up. Or, if the owner hasn't been paid, this performs
+  // the same function as `withdraw`, but also shuts down the contract.
+  function shutdown() onlyOwner afterDraw {
+    if (paidOut()) {
+      selfdestruct(owner);
     }
   }
 
@@ -256,7 +288,7 @@ contract LotteryRound is Owned {
           if (!winner.send(prizeValue)) {
             // If I can't send you money, dumbshit, you get to claim it on your own.
             // maybe next time don't use a contract or try to exploit the game.
-            // regardless, you're on your own.
+            // Regardless, you're on your own.  Happy birthday to the ground.
             winningsClaimable[winner] = true;
           }
         }
@@ -264,6 +296,10 @@ contract LotteryRound is Owned {
     }
   }
 
+  /**
+   * Returns true if it's after the draw, and either there are no winners, or all the winners have been paid.
+   * @return {bool}
+   */
   function paidOut() constant returns(bool) {
     // no need to use the modifier on this function, just do the same check
     // and return false instead.
@@ -276,7 +312,7 @@ contract LotteryRound is Owned {
       // we still have money to pay out.
       for (uint i = 0; i < winners.length; i++) {
         address winner = winners[i];
-        unclaimed |= winningsClaimable[winner];
+        unclaimed = unclaimed || winningsClaimable[winner];
       }
       return unclaimed;
     } else {
@@ -289,7 +325,7 @@ contract LotteryRound is Owned {
     if (winningsClaimable[msg.sender]) {
       winningsClaimable[msg.sender] = false;
       if (!msg.sender.send(prizeValue)) {
-        // sucks to be you, bro.
+        // you really are a dumbshit, arenn't you.
         throw;
       }
     }
