@@ -38,7 +38,7 @@ contract LotteryRound is Owned {
   event LotteryRoundCompleted(
     bytes32 salt,
     uint8 N,
-    bytes4 indexed winningPick
+    bytes4 indexed winningPicks
   );
   event LotteryRoundWinner(
     address indexed ticketHolder,
@@ -180,7 +180,7 @@ contract LotteryRound is Owned {
       block.number,
       accumulatedEntropy
     )) & 0xff);
-    // WARNING: This assumes block.number > 256
+    // WARNING: This assumes block.number > 256... If block.number < 256, the below block.blockhash will return 0
     uint256 pseudoRandomBlock = block.number - pseudoRandomOffset - 1;
     bytes32 pseudoRand = sha3(
       block.number,
@@ -194,6 +194,7 @@ contract LotteryRound is Owned {
     LotteryRoundDraw(msg.sender, picks);
   }
 
+  // TODO: Make internal
   function proofOfSalt(bytes32 salt, uint8 N) constant returns(bool) {
     // Proof-of-N:
     bytes32 _saltNHash = sha3(salt, N, salt);
@@ -212,6 +213,34 @@ contract LotteryRound is Owned {
     return true;
   }
 
+  function finalizeRound(bytes32 salt, uint8 N, bytes4 winningPicks) internal {
+    winningNumbers = winningPicks;
+    winningNumbersPicked = true;
+    LotteryRoundCompleted(salt, N, winningNumbers);
+
+    var _winners = tickets[winningNumbers];
+    // if we have winners:
+    if (_winners.length > 0) {
+      // let's dedupe and broadcast the winners before figuring out the prize pool situation.
+      for (uint i = 0; i < _winners.length; i++) {
+        var winner = _winners[i];
+        if (!winningsClaimable[winner]) {
+          winners.push(winner);
+          winningsClaimable[winner] = true;
+          LotteryRoundWinner(winner, winningNumbers);
+        }
+      }
+      // now let's wrap this up by finalizing the prize pool value:
+      // There may be some rounding errors in here, but it should only amount to a couple wei.
+      prizePool = this.balance * PAYOUT_FRACTION / 1000;
+      prizeValue = prizePool / winners.length;
+
+      // Note that the owner doesn't get to claim a fee until the game is won.
+      ownerFee = this.balance - prizePool;
+    }
+    // we done.
+  }
+
   function closeGame(bytes32 salt, uint8 N) onlyOwner beforeDraw {
     // Don't allow picking numbers multiple times.
     if (winningNumbersPicked == true) {
@@ -226,43 +255,32 @@ contract LotteryRound is Owned {
       salt,
       accumulatedEntropy
     )) & 0xff);
-    // WARNING: This assumes block.number > 256
+    // WARNING: This assumes block.number > 256... If block.number < 256, the below block.blockhash will return 0
     uint256 pseudoRandomBlock = block.number - pseudoRandomOffset - 1;
     bytes32 pseudoRand = sha3(
       salt,
       block.blockhash(pseudoRandomBlock),
       accumulatedEntropy
     );
-    winningNumbers = pickValues(pseudoRand);
-    winningNumbersPicked = true;
-    LotteryRoundCompleted(salt, N, winningNumbers);
-
-    winners = tickets[winningNumbers];
-    // if we have winners:
-    if (winners.length > 0) {
-      // now let's wrap this up by finalizing the prize pool value:
-      // There may be some rounding errors in here, but it should only amount to a couple wei.
-      prizePool = this.balance * PAYOUT_FRACTION / 1000;
-      prizeValue = prizePool / winners.length;
-      ownerFee = this.balance - prizePool;
-
-      // and broadcast the winners:
-      for (uint i = 0; i < winners.length; i++) {
-        address winner = winners[i];
-        winningsClaimable[winner] = true;
-        LotteryRoundWinner(winner, winningNumbers);
-      }
-    }
-    // we done.
+    finalizeRound(salt, N, pickValues(pseudoRand));
   }
 
-  // Override this so we can only withdraw the surplus, and only after the drawing has completed:
+  // Send the owner's portion to an address of their discretion.
   // Also clears the owner fee, so the fee can only be withdrawn once.
-  function withdraw() onlyOwner afterDraw {
+  function claimOwnerFee(address payout) onlyOwner afterDraw {
     if (ownerFee > 0) {
       uint256 value = ownerFee;
       ownerFee = 0;
-      if (!owner.send(value)) {
+      if (!payout.send(value)) {
+        throw;
+      }
+    }
+  }
+
+  // Override this so we can only withdraw the surplus, and after everyone's been paid.
+  function withdraw() onlyOwner afterDraw {
+    if (paidOut() && ownerFee == 0) {
+      if (!owner.send(this.balance)) {
         throw;
       }
     }
@@ -270,10 +288,10 @@ contract LotteryRound is Owned {
 
   // Override this one, too, so that we can only shut this thing down if there are either no winners,
   // or the winners have all been paid.  Once everything is paid out, there might be a few wei in here due to
-  // rounding errors, etc, so we use this to clean that shit up. Or, if the owner hasn't been paid, this performs
-  // the same function as `withdraw`, but also shuts down the contract.
+  // rounding errors, etc, so we use this to clean that shit up. This performs the same function as `withdraw`, but
+  // also shuts down the contract.
   function shutdown() onlyOwner afterDraw {
-    if (paidOut()) {
+    if (paidOut() && ownerFee == 0) {
       selfdestruct(owner);
     }
   }
@@ -325,7 +343,7 @@ contract LotteryRound is Owned {
     if (winningsClaimable[msg.sender]) {
       winningsClaimable[msg.sender] = false;
       if (!msg.sender.send(prizeValue)) {
-        // you really are a dumbshit, arenn't you.
+        // you really are a dumbshit, aren't you.
         throw;
       }
     }

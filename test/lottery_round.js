@@ -1,14 +1,21 @@
 var assert = require('assert');
 var Embark = require('embark');
-var soliditySha3 = require('../lib/solidity-sha3');
+var sha3Utils = require('../lib/sha3-utils');
 var EmbarkSpec = Embark.initTests({
   embarkConfig: 'test/lottery_round.json'
 });
 var web3 = EmbarkSpec.web3;
 
-describe.skip('LotteryRound', function() {
-  var salt = soliditySha3.sha3('secret');
+describe('LotteryRound', function() {
+  var saltHash, saltNHash;
+  var salt = web3.sha3('secret');
   var N = 12;
+  saltHash = web3.sha3(salt, { encoding: 'hex' });
+  for(var i = 1; i < N; i++) {
+    saltHash = web3.sha3(saltHash, { encoding: 'hex' });
+  }
+  saltNHash = web3.sha3(sha3Utils.packHex(salt, sha3Utils.uintToHex(N, 8), salt), { encoding: 'hex' });
+
   var accounts;
 
   function Promisify(method) {
@@ -32,85 +39,77 @@ describe.skip('LotteryRound', function() {
     return Promisify(filter.get.bind(filter));
   }
 
+  before(function(done) {
+    web3.eth.getAccounts(function(err, acc) {
+      if (err) {
+        return done(err);
+      }
+      accounts = acc;
+      done();
+    });
+  });
+
   describe('deployment', function() {
     before(function(done) {
-      web3.eth.getAccounts(function(err, acc) {
-        if (err) {
-          return done(err);
+      var contractsConfig = {
+        LotteryRound: {
+          args: [
+            saltHash,
+            saltNHash
+          ],
+          gas: '3000000'
         }
-        var saltHash = soliditySha3.sha3(salt);
-        for(var i = 1; i < N; i++) {
-          saltHash = soliditySha3.sha3(saltHash);
-        }
-        accounts = acc;
-        var contractsConfig = {
-          LotteryRound: {
-            args: [
-              saltHash,
-              soliditySha3.sha3(salt, N, salt)
-            ],
-            gas: '3000000'
-          }
-        };
+      };
 
-        EmbarkSpec.deployAll(contractsConfig, done);
-      });
+      EmbarkSpec.deployAll(contractsConfig, done);
     });
 
     it('deploys successfully', function() {
       assert.notEqual(LotteryRound.address, 'undefined', 'Actually is deployed');
-      var saltHash = soliditySha3.sha3(salt);
-      for(var i = 1; i < N; i++) {
-        saltHash = soliditySha3.sha3(saltHash);
-      }
-      var saltNHash = soliditySha3.sha3(salt, N, salt);
       return Promisify(LotteryRound.saltHash.bind(LotteryRound)).then(function(contractSaltHash) {
         assert.equal(contractSaltHash, saltHash, 'saltHash is publicly verifiable');
         return Promisify(LotteryRound.saltNHash.bind(LotteryRound));
       }).then(function(contractSaltNHash) {
         assert.equal(contractSaltNHash, saltNHash, 'saltNHash is publicly verifiable');
+      });
+    });
+
+    it('has a verifiable salt and N', function() {
+      return Promisify(LotteryRound.proofOfSalt.bind(LotteryRound, salt, N)).then(function(result) {
+        assert.equal(result, true, 'Salt is verifiable');
       });
     });
   });
 
   describe('deployment with initial balance', function() {
     before(function(done) {
-      web3.eth.getAccounts(function(err, acc) {
-        if (err) {
-          return done(err);
+      var contractsConfig = {
+        LotteryRound: {
+          args: [
+            saltHash,
+            saltNHash
+          ],
+          gas: '3000000',
+          value: web3.toWei(10, 'ether')
         }
-        var saltHash = soliditySha3.sha3(salt);
-        for(var i = 1; i < N; i++) {
-          saltHash = soliditySha3.sha3(saltHash);
-        }
-        accounts = acc;
-        var contractsConfig = {
-          LotteryRound: {
-            args: [
-              saltHash,
-              soliditySha3.sha3(salt, N, salt)
-            ],
-            gas: '3000000',
-            value: web3.toWei(10, 'ether')
-          }
-        };
+      };
 
-        EmbarkSpec.deployAll(contractsConfig, done);
-      });
+      EmbarkSpec.deployAll(contractsConfig, done);
     });
 
     it('deploys successfully', function() {
       assert.notEqual(LotteryRound.address, 'undefined', 'Actually is deployed');
-      var saltHash = soliditySha3.sha3(salt);
-      for(var i = 1; i < N; i++) {
-        saltHash = soliditySha3.sha3(saltHash);
-      }
-      var saltNHash = soliditySha3.sha3(salt, N, salt);
       return Promisify(LotteryRound.saltHash.bind(LotteryRound)).then(function(contractSaltHash) {
         assert.equal(contractSaltHash, saltHash, 'saltHash is publicly verifiable');
         return Promisify(LotteryRound.saltNHash.bind(LotteryRound));
       }).then(function(contractSaltNHash) {
         assert.equal(contractSaltNHash, saltNHash, 'saltNHash is publicly verifiable');
+      });
+    });
+
+    it('has a verifiable salt and N', function() {
+      return Promisify(LotteryRound.proofOfSalt.bind(LotteryRound, salt, N)).then(function(result) {
+        assert.equal(result, true, 'Salt is verifiable');
       });
     });
   });
@@ -118,27 +117,17 @@ describe.skip('LotteryRound', function() {
   describe('buying tickets', function() {
 
     before(function(done) {
-      web3.eth.getAccounts(function(err, acc) {
-        if (err) {
-          return done(err);
+      var contractsConfig = {
+        LotteryRound: {
+          args: [
+            saltHash,
+            saltNHash
+          ],
+          gas: '3000000'
         }
-        var saltHash = soliditySha3.sha3(salt);
-        for(var i = 1; i < N; i++) {
-          saltHash = soliditySha3.sha3(saltHash);
-        }
-        accounts = acc;
-        var contractsConfig = {
-          LotteryRound: {
-            args: [
-              saltHash,
-              soliditySha3.sha3(salt, N, salt)
-            ],
-            gas: '3000000'
-          }
-        };
+      };
 
-        EmbarkSpec.deployAll(contractsConfig, done);
-      });
+      EmbarkSpec.deployAll(contractsConfig, done);
     });
 
     it('Rejects picks when no payment is provided', function() {
