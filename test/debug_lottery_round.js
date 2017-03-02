@@ -2,7 +2,7 @@ var assert = require('assert');
 var Embark = require('embark');
 var sha3Utils = require('../lib/sha3-utils');
 var EmbarkSpec = Embark.initTests({
-  embarkConfig: 'test/debug_lottery_round.json'
+  embarkConfig: 'test/configs/debug_lottery_round.json'
 });
 var web3 = EmbarkSpec.web3;
 
@@ -180,7 +180,15 @@ describe('DebugLotteryRound', function() {
 
   describe('awarding winners', function() {
     function addPick(pick, account) {
-      return Promisify(DebugLotteryRound.pickTicket.bind(DebugLotteryRound, pick, { value: web3.toWei(1, 'finney'), from: account })).then(function(tx) {
+      return Promisify(DebugLotteryRound.pickTicket.bind(
+        DebugLotteryRound,
+        pick,
+        {
+          value: web3.toWei(1, 'finney'),
+          from: account,
+          gas: '1000000'
+        }
+      )).then(function(tx) {
         return getReceipt(tx);
       });
     }
@@ -364,7 +372,7 @@ describe('DebugLotteryRound', function() {
         });
       });
 
-      it('does not allow allows the owner fee to be withdrawn multiple times', function() {
+      it('does not allow the owner fee to be withdrawn multiple times', function() {
         var winningPick = '0x11223344';
         var output = accounts[5];
         var expectedPrizeValue = expectedPrizePool;
@@ -389,7 +397,7 @@ describe('DebugLotteryRound', function() {
         });
       });
 
-      it('does not allow allows the owner fee to be withdrawn if there is no winner', function() {
+      it('does not allow the owner fee to be withdrawn if there is no winner', function() {
         var winningPick = '0x21222324';
         var output = accounts[5];
         var expectedPrizeValue = expectedPrizePool;

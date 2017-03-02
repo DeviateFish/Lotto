@@ -2,7 +2,7 @@ var assert = require('assert');
 var Embark = require('embark');
 var sha3Utils = require('../lib/sha3-utils');
 var EmbarkSpec = Embark.initTests({
-  embarkConfig: 'test/lottery_round.json'
+  embarkConfig: 'test/configs/lottery_round.json'
 });
 var web3 = EmbarkSpec.web3;
 
@@ -131,7 +131,7 @@ describe('LotteryRound', function() {
     });
 
     it('Rejects picks when no payment is provided', function() {
-      return Promisify(LotteryRound.pickTicket.bind(LotteryRound, '0x11223344', { from: accounts[1] })).then(function(receipt) {
+      return Promisify(LotteryRound.pickTicket.bind(LotteryRound, '0x11223344', { from: accounts[1], gas: '1000000' })).then(function(receipt) {
         return getReceipt(receipt);
       }).then(function(success) {
         assert.equal(success, undefined, 'Should not succeed.');
@@ -142,7 +142,7 @@ describe('LotteryRound', function() {
 
     it('Accepts specific picks when payment is provided', function() {
       var pick = '0x11223344';
-      return Promisify(LotteryRound.pickTicket.bind(LotteryRound, pick, { value: web3.toWei(1, 'finney'), from: accounts[1] })).then(function(receipt) {
+      return Promisify(LotteryRound.pickTicket.bind(LotteryRound, pick, { value: web3.toWei(1, 'finney'), from: accounts[1], gas: '1000000' })).then(function(receipt) {
         return getReceipt(receipt);
       }).then(function(success) {
         assert.notEqual(success, undefined, 'Should succeed.');
@@ -157,7 +157,7 @@ describe('LotteryRound', function() {
 
     it('Allows duplicate specific picks from different users', function() {
       var pick = '0x23456701';
-      return Promisify(LotteryRound.pickTicket.bind(LotteryRound, pick, { value: web3.toWei(1, 'finney'), from: accounts[1] })).then(function(receipt) {
+      return Promisify(LotteryRound.pickTicket.bind(LotteryRound, pick, { value: web3.toWei(1, 'finney'), from: accounts[1], gas: '1000000' })).then(function(receipt) {
         return getReceipt(receipt);
       }).then(function(success) {
         assert.notEqual(success, undefined, 'Should succeed.');
@@ -168,7 +168,7 @@ describe('LotteryRound', function() {
         assert.equal(result.args.picks, pick, 'Logs the picked number');
         assert.equal(result.args.ticketHolder, accounts[1], 'Logs the proper ticketholder');
       }).then(function() {
-        return Promisify(LotteryRound.pickTicket.bind(LotteryRound, pick, { value: web3.toWei(1, 'finney'), from: accounts[2] }));
+        return Promisify(LotteryRound.pickTicket.bind(LotteryRound, pick, { value: web3.toWei(1, 'finney'), from: accounts[2], gas: '1000000' }));
       }).then(function(receipt) {
         return getReceipt(receipt);
       }).then(function(success) {
@@ -184,7 +184,7 @@ describe('LotteryRound', function() {
 
     it('Allows duplicate specific picks from the same user', function() {
       var pick = '0x00112233';
-      return Promisify(LotteryRound.pickTicket.bind(LotteryRound, pick, { value: web3.toWei(1, 'finney'), from: accounts[1] })).then(function(receipt) {
+      return Promisify(LotteryRound.pickTicket.bind(LotteryRound, pick, { value: web3.toWei(1, 'finney'), from: accounts[1], gas: '1000000' })).then(function(receipt) {
         return getReceipt(receipt);
       }).then(function(success) {
         assert.notEqual(success, undefined, 'Should succeed.');
@@ -195,7 +195,7 @@ describe('LotteryRound', function() {
         assert.equal(result.args.picks, pick, 'Logs the picked number');
         assert.equal(result.args.ticketHolder, accounts[1], 'Logs the proper ticketholder');
       }).then(function() {
-        return Promisify(LotteryRound.pickTicket.bind(LotteryRound, pick, { value: web3.toWei(1, 'finney'), from: accounts[1] }));
+        return Promisify(LotteryRound.pickTicket.bind(LotteryRound, pick, { value: web3.toWei(1, 'finney'), from: accounts[1], gas: '1000000' }));
       }).then(function(receipt) {
         return getReceipt(receipt);
       }).then(function(success) {

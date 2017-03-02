@@ -1,8 +1,9 @@
 pragma solidity ^0.4.8;
 
 import "Common.sol";
+import "LotteryRoundInterface.sol";
 
-contract LotteryRound is Owned {
+contract LotteryRound is LotteryRoundInterface, Owned {
 
   modifier beforeClose {
     if (block.number > closingBlock) {
@@ -52,10 +53,10 @@ contract LotteryRound is Owned {
   string public VERSION = '0.1.0';
 
   // round length
-  uint256 public ROUND_LENGTH = 10000;
+  uint256 public ROUND_LENGTH = 12500;  // just over two days
 
   // payout fraction (in thousandths):
-  uint256 public PAYOUT_FRACTION = 990;
+  uint256 public PAYOUT_FRACTION = 950;
 
   // Cost per ticket
   uint public TICKET_PRICE = 1 finney;
@@ -141,6 +142,25 @@ contract LotteryRound is Owned {
     throw;
   }
 
+  function generatePseudoRand() internal returns(bytes32) {
+    uint8 pseudoRandomOffset = uint8(uint256(sha256(
+      msg.sender,
+      block.number,
+      accumulatedEntropy
+    )) & 0xff);
+    // WARNING: This assumes block.number > 256... If block.number < 256, the below block.blockhash could return 0
+    // This is probably only an issue in testing, but shouldn't be a problem there.
+    uint256 pseudoRandomBlock = block.number - pseudoRandomOffset - 1;
+    bytes32 pseudoRand = sha3(
+      block.number,
+      block.blockhash(pseudoRandomBlock),
+      msg.sender,
+      accumulatedEntropy
+    );
+    accumulatedEntropy = sha3(accumulatedEntropy, pseudoRand);
+    return pseudoRand;
+  }
+
   /**
    * Buy a ticket with pre-selected picks
    * @param picks User's picks.
@@ -157,6 +177,7 @@ contract LotteryRound is Owned {
     }
     tickets[picks].push(msg.sender);
     nTickets++;
+    generatePseudoRand(); // advance the accumulated entropy
     LotteryRoundDraw(msg.sender, picks);
   }
 
@@ -175,26 +196,14 @@ contract LotteryRound is Owned {
     if (msg.value != TICKET_PRICE) {
       throw;
     }
-    uint8 pseudoRandomOffset = uint8(uint256(sha256(
-      msg.sender,
-      block.number,
-      accumulatedEntropy
-    )) & 0xff);
-    // WARNING: This assumes block.number > 256... If block.number < 256, the below block.blockhash will return 0
-    uint256 pseudoRandomBlock = block.number - pseudoRandomOffset - 1;
-    bytes32 pseudoRand = sha3(
-      block.number,
-      block.blockhash(pseudoRandomBlock),
-      msg.sender,
-      accumulatedEntropy
-    );
+    bytes32 pseudoRand = generatePseudoRand();
     bytes4 picks = pickValues(pseudoRand);
     tickets[picks].push(msg.sender);
-    accumulatedEntropy = sha3(accumulatedEntropy, pseudoRand);
+    nTickets++;
     LotteryRoundDraw(msg.sender, picks);
   }
 
-  // TODO: Make internal
+  // TODO: Make internal, maybe?
   function proofOfSalt(bytes32 salt, uint8 N) constant returns(bool) {
     // Proof-of-N:
     bytes32 _saltNHash = sha3(salt, N, salt);
@@ -247,6 +256,7 @@ contract LotteryRound is Owned {
       throw;
     }
 
+    // prove the pre-selected salt is actually legit.
     if (proofOfSalt(salt, N) != true) {
       throw;
     }
@@ -255,7 +265,8 @@ contract LotteryRound is Owned {
       salt,
       accumulatedEntropy
     )) & 0xff);
-    // WARNING: This assumes block.number > 256... If block.number < 256, the below block.blockhash will return 0
+    // WARNING: This assumes block.number > 256... If block.number < 256, the below block.blockhash could return 0
+    // This is probably only an issue in testing, but shouldn't be a problem there.
     uint256 pseudoRandomBlock = block.number - pseudoRandomOffset - 1;
     bytes32 pseudoRand = sha3(
       salt,
