@@ -2,6 +2,7 @@ pragma solidity ^0.4.8;
 
 contract LotteryRoundInterface {
   bool public winningNumbersPicked;
+  uint256 public closingBlock;
 
   function pickTicket(bytes4 picks) payable;
   function randomTicket() payable;

@@ -1,14 +1,15 @@
 pragma solidity ^0.4.8;
 
 import "Common.sol";
+import "LotteryRoundFactoryInterface.sol";
+import "LotteryGameLogicInterface.sol";
 
 contract Lotto is Owned {
 
   address[] public previousRounds;
-  address public currentRound;
 
-  address public roundFactory;
-  address public gameLogic;
+  LotteryRoundFactoryInterface public roundFactory;
+  LotteryGameLogicInterface public gameLogic;
 
   function linkFactory() internal {
     roundFactory.transferOwnership(gameLogic);
@@ -16,13 +17,29 @@ contract Lotto is Owned {
   }
 
   function setNewFactory(address newFactory) onlyOwner {
-    roundFactory = newFactory;
+    roundFactory.transferOwnership(owner);
+    roundFactory = LotteryRoundFactoryInterface(newFactory);
     linkFactory();
   }
 
   function setNewGameLogic(address newLogic) onlyOwner {
     gameLogic.relinquishFactory();
-    gameLogic = newLogic;
+    gameLogic.transferOwnership(owner);
+    gameLogic = LotteryGameLogicInterface(newLogic);
     linkFactory();
+  }
+
+  function currentRound() constant returns(address) {
+    return gameLogic.currentRound();
+  }
+
+  function finalizeRound() onlyOwner {
+    address roundAddress = gameLogic.finalizeRound();
+    previousRounds.push(roundAddress);
+  }
+
+  function acquireRound(uint roundIndex) onlyOwner {
+    Owned round = Owned(previousRounds[roundIndex]);
+    round.transferOwnership(owner);
   }
 }
