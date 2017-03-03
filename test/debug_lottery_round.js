@@ -223,7 +223,7 @@ describe('DebugLotteryRound', function() {
     describe('winning scenarios', function() {
       // Note, this will change if the payout fraction changes.
       var expectedTicketTotal = web3.toBigNumber(web3.toWei(5, 'finney'));
-      var expectedPrizePool = expectedTicketTotal.times(990).dividedBy(1000);
+      var expectedPrizePool = expectedTicketTotal.times(950).dividedBy(1000);
       var expectedOwnerFee = expectedTicketTotal.minus(expectedPrizePool);
 
       beforeEach(function(done) {

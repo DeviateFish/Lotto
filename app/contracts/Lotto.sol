@@ -12,19 +12,25 @@ contract Lotto is Owned {
   LotteryGameLogicInterface public gameLogic;
 
   function linkFactory() internal {
-    roundFactory.transferOwnership(gameLogic);
-    gameLogic.setFactory(roundFactory);
+    if (roundFactory != LotteryRoundFactoryInterface(0) && gameLogic != LotteryGameLogicInterface(0)) {
+      roundFactory.transferOwnership(gameLogic);
+      gameLogic.setFactory(roundFactory);
+    }
   }
 
   function setNewFactory(address newFactory) onlyOwner {
-    roundFactory.transferOwnership(owner);
+    if (roundFactory != LotteryRoundFactoryInterface(0)) {
+      roundFactory.transferOwnership(owner);
+    }
     roundFactory = LotteryRoundFactoryInterface(newFactory);
     linkFactory();
   }
 
   function setNewGameLogic(address newLogic) onlyOwner {
-    gameLogic.relinquishFactory();
-    gameLogic.transferOwnership(owner);
+    if (gameLogic != LotteryGameLogicInterface(0)) {
+      gameLogic.relinquishFactory();
+      gameLogic.transferOwnership(owner);
+    }
     gameLogic = LotteryGameLogicInterface(newLogic);
     linkFactory();
   }
@@ -39,7 +45,14 @@ contract Lotto is Owned {
   }
 
   function acquireRound(uint roundIndex) onlyOwner {
+    if (roundIndex >= previousRounds.length) {
+      throw;
+    }
     Owned round = Owned(previousRounds[roundIndex]);
     round.transferOwnership(owner);
+  }
+
+  function previousRoundsCount() constant returns(uint) {
+    return previousRounds.length;
   }
 }

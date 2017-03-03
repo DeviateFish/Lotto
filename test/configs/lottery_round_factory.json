@@ -1,5 +1,7 @@
 {
   "contracts": [
+    "app/contracts/LotteryRoundFactory.sol",
+    "app/contracts/LotteryRoundFactoryInterface.sol",
     "app/contracts/LotteryRound.sol",
     "app/contracts/LotteryRoundInterface.sol",
     "app/contracts/Common.sol"

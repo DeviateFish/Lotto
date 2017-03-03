@@ -2,6 +2,7 @@
   "contracts": [
     "app/contracts/DebugLotteryRound.sol",
     "app/contracts/LotteryRound.sol",
+    "app/contracts/LotteryRoundInterface.sol",
     "app/contracts/Common.sol"
   ],
   "app": {
