@@ -51,16 +51,20 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
   // used to give ownership of the factory back to the owner of this
   // contract, so it can be safely torn down, etc.
   // also used in preparation for upgrading the game logic contract.
-  function relinquishFactory() onlyOwner {
+  function relinquishFactory() onlyOwner onlyWhenNoRound {
     roundFactory.transferOwnership(owner);
   }
 
-  function setFactory(address newFactory) onlyOwner {
+  function setFactory(address newFactory) onlyOwner onlyWhenNoRound {
     roundFactory = LotteryRoundFactoryInterfaceV1(newFactory);
   }
 
-  function setCurator(address newCurator) onlyOwner {
+  function setCurator(address newCurator) onlyOwner onlyWhenNoRound {
     curator = newCurator;
+  }
+
+  function isUpgradeAllowed() constant returns(bool) {
+    return currentRound != LotteryRoundInterface(0);
   }
 
   function startRound(bytes32 saltHash, bytes32 saltNHash) onlyCurator onlyWhenNoRound {
@@ -97,5 +101,15 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
     // handling them might require special care or something.
 
     return roundAddress;
+  }
+
+  function deposit() payable onlyOwner onlyWhenNoRound {
+    // noop, just used for depositing funds during an upgrade.
+  }
+
+  // Man, this ain't my dad!
+  // This is a cell phone!
+  function () {
+    throw;
   }
 }

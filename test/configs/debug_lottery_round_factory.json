@@ -1,0 +1,18 @@
+{
+  "contracts": [
+    "app/contracts/DebugLotteryRoundFactory.sol",
+    "app/contracts/LotteryRoundFactoryInterface.sol",
+    "app/contracts/DebugLotteryRound.sol",
+    "app/contracts/LotteryRound.sol",
+    "app/contracts/LotteryRoundInterface.sol",
+    "app/contracts/Common.sol"
+  ],
+  "app": {
+    "css/app.css": ["app/css/**"],
+    "js/app.js": ["embark.js", "app/js/**"],
+    "index.html": "app/index.html"
+  },
+  "buildDir": "dist/",
+  "config": "config/",
+  "plugins": {}
+}
