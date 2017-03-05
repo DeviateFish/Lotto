@@ -483,7 +483,7 @@ describe('LotteryGameLogic - 2', function() {
     });
   });
 
-  describe.only('when the finalizing the round', function() {
+  describe('when the finalizing the round', function() {
     var curator;
     var expectedBalance = web3.toWei(2, 'ether');
     before(function(done) {

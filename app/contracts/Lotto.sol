@@ -18,6 +18,13 @@ contract Lotto is Owned {
     _;
   }
 
+  modifier onlyGameLogic {
+    if (msg.sender != address(gameLogic)) {
+      throw;
+    }
+    _;
+  }
+
   function linkFactory() internal {
     if (roundFactory != LotteryRoundFactoryInterface(0) && gameLogic != LotteryGameLogicInterface(0)) {
       roundFactory.transferOwnership(gameLogic);
@@ -70,8 +77,10 @@ contract Lotto is Owned {
     return previousRounds.length;
   }
 
-  // Man, I'm not gonna let you poison me
-  function () {
+  // only the game logic contract should be sending this money,
+  // and only when it's being upgraded and carrying a balance
+  // from a previous round.
+  function () payable onlyGameLogic {
     throw;
   }
 }

@@ -13,6 +13,35 @@ function assertInvalidJump(err) {
   assert.equal(INVALID_JUMP.test(err), true, 'Threw an invalid jump');
 }
 
+function Promisify(method) {
+  return new Promise(function(resolve, reject) {
+    method(function(err, result) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+}
+
+function getReceipt(tx) {
+  return Promisify(web3.eth.getTransactionReceipt.bind(web3.eth, tx));
+}
+
+function getEvent(contract, event, blockNumber) {
+  var filter = contract[event]({ from: blockNumber, to: blockNumber });
+  return Promisify(filter.get.bind(filter));
+}
+
+function assertGoodReceipt(receipt) {
+  assert.notEqual(receipt, undefined, 'Receipt exists');
+  assert.ok(receipt.blockHash, 'Has a block hash');
+  assert.ok(receipt.transactionHash, 'Has a transaction hash');
+  assert.ok(receipt.blockNumber, 'Has a block number');
+}
+
+
 describe('LotteryRoundFactory', function() {
   var saltHash, saltNHash;
   var salt = web3.sha3('secret');
@@ -25,25 +54,27 @@ describe('LotteryRoundFactory', function() {
 
   var accounts;
 
-  function Promisify(method) {
-    return new Promise(function(resolve, reject) {
-      method(function(err, result) {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(result);
-        }
-      });
+  function validateCreatedEvent(version, blockNumber) {
+    return getEvent(LotteryRoundFactory, 'LotteryRoundCreated', blockNumber).then(function(results) {
+      assert.equal(results.length, 1, 'One event emitted from LotteryRoundFactory');
+      var result = results[0];
+      assert.equal(result.args.version, '0.1.0');
+      return result.args.newRound;
     });
   }
 
-  function getReceipt(tx) {
-    return Promisify(web3.eth.getTransactionReceipt.bind(web3.eth, tx));
+  function getBalance(account) {
+    return Promisify(web3.eth.getBalance.bind(web3.eth, account));
   }
 
-  function getEvent(contract, event, blockNumber) {
-    var filter = contract[event]({ from: blockNumber, to: blockNumber });
-    return Promisify(filter.get.bind(filter));
+  function validateNewRound(roundAddress, _saltHash, _saltNHash) {
+    var newRound = LotteryRoundContract.at(roundAddress);
+    return Promisify(newRound.saltHash.bind(newRound)).then(function(contractSaltHash) {
+      assert.equal(contractSaltHash, _saltHash, 'saltHash is publicly verifiable');
+      return Promisify(newRound.saltNHash.bind(newRound));
+    }).then(function(contractSaltNHash) {
+      assert.equal(contractSaltNHash, _saltNHash, 'saltNHash is publicly verifiable');
+    });
   }
 
   before(function(done) {
@@ -70,26 +101,28 @@ describe('LotteryRoundFactory', function() {
     it('deploys successfully', function() {
       assert.notEqual(LotteryRoundFactory.address, 'undefined', 'Actually is deployed');
     });
+  });
+
+  describe('.createRound', function() {
+    before(function(done) {
+      var contractsConfig = {
+        LotteryRoundFactory: {
+          gas: '4000000'
+        }
+      };
+
+      EmbarkSpec.deployAll(contractsConfig, done);
+    });
 
     it('can create a LotteryRound with verifiable parameters', function() {
       return Promisify(LotteryRoundFactory.createRound.bind(LotteryRoundFactory, saltHash, saltNHash, { gas: '2000000' })).then(function(tx) {
         return getReceipt(tx);
-      }).then(function(success) {
-        assert.ok(success.blockHash, 'transaction succeeded');
-        assert.ok(success.blockNumber, 'transaction succeeded');
-        assert.ok(success.transactionHash, 'transaction succeeded');
-        return getEvent(LotteryRoundFactory, 'LotteryRoundCreated', success.blockNumber);
-      }).then(function(results) {
-        assert.equal(results.length, 1, 'One event emitted from LotteryRoundFactory');
-        var result = results[0];
-        assert.equal(result.args.version, '0.1.0');
-        var newRound = LotteryRoundContract.at(result.args.newRound);
-        return Promisify(newRound.saltHash.bind(newRound)).then(function(contractSaltHash) {
-          assert.equal(contractSaltHash, saltHash, 'saltHash is publicly verifiable');
-          return Promisify(newRound.saltNHash.bind(newRound));
-        }).then(function(contractSaltNHash) {
-          assert.equal(contractSaltNHash, saltNHash, 'saltNHash is publicly verifiable');
-          return Promisify(web3.eth.getBalance.bind(web3.eth, result.args.newRound));
+      }).then(function(receipt) {
+        assertGoodReceipt(receipt);
+        return validateCreatedEvent(receipt.blockNumber);
+      }).then(function(roundAddress) {
+        return validateNewRound(roundAddress, saltHash, saltNHash).then(function() {
+          return getBalance(roundAddress);
         }).then(function(newRoundBalance) {
           assert.equal(newRoundBalance.equals(0), true, 'has no initial balance.');
         });
@@ -100,22 +133,12 @@ describe('LotteryRoundFactory', function() {
       var balance = web3.toWei(10, 'ether');
       return Promisify(LotteryRoundFactory.createRound.bind(LotteryRoundFactory, saltHash, saltNHash, { gas: '2000000', value: balance })).then(function(tx) {
         return getReceipt(tx);
-      }).then(function(success) {
-        assert.ok(success.blockHash, 'transaction succeeded');
-        assert.ok(success.blockNumber, 'transaction succeeded');
-        assert.ok(success.transactionHash, 'transaction succeeded');
-        return getEvent(LotteryRoundFactory, 'LotteryRoundCreated', success.blockNumber);
-      }).then(function(results) {
-        assert.equal(results.length, 1, 'One event emitted from LotteryRoundFactory');
-        var result = results[0];
-        assert.equal(result.args.version, '0.1.0');
-        var newRound = LotteryRoundContract.at(result.args.newRound);
-        return Promisify(newRound.saltHash.bind(newRound)).then(function(contractSaltHash) {
-          assert.equal(contractSaltHash, saltHash, 'saltHash is publicly verifiable');
-          return Promisify(newRound.saltNHash.bind(newRound));
-        }).then(function(contractSaltNHash) {
-          assert.equal(contractSaltNHash, saltNHash, 'saltNHash is publicly verifiable');
-          return Promisify(web3.eth.getBalance.bind(web3.eth, result.args.newRound));
+      }).then(function(receipt) {
+        assertGoodReceipt(receipt);
+        return validateCreatedEvent(receipt.blockNumber);
+      }).then(function(roundAddress) {
+        return validateNewRound(roundAddress, saltHash, saltNHash).then(function() {
+          return getBalance(roundAddress);
         }).then(function(newRoundBalance) {
           assert.equal(newRoundBalance.equals(web3.toBigNumber(balance)), true, 'has the full initial balance.');
         });

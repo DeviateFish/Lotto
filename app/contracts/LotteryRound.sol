@@ -133,6 +133,8 @@ contract LotteryRound is LotteryRoundInterface, Owned {
       closingBlock,
       VERSION
     );
+    // start this off with some really poor entropy.
+    accumulatedEntropy = block.blockhash(block.number - 1);
   }
 
   // Man! What do I look like? A charity case?
