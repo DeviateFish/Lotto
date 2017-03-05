@@ -6,6 +6,13 @@ var EmbarkSpec = Embark.initTests({
 });
 var web3 = EmbarkSpec.web3;
 
+var INVALID_JUMP = /invalid JUMP/;
+var OUT_OF_GAS = /out of gas/;
+
+function assertInvalidJump(err) {
+  assert.equal(INVALID_JUMP.test(err), true, 'Threw an invalid jump');
+}
+
 describe('LotteryRound', function() {
   var saltHash, saltNHash;
   var salt = web3.sha3('secret');
@@ -136,7 +143,7 @@ describe('LotteryRound', function() {
       }).then(function(success) {
         assert.equal(success, undefined, 'Should not succeed.');
       }).catch(function(err) {
-        assert.notEqual(err, undefined, 'Should thrown an error');
+        assertInvalidJump(err);
       });
     });
 
@@ -216,7 +223,7 @@ describe('LotteryRound', function() {
       }).then(function(success) {
         assert.equal(success, undefined, 'Should not succeed.');
       }).catch(function(err) {
-        assert.notEqual(err, undefined, 'Should thrown an error');
+        assertInvalidJump(err);
       });
     });
 
@@ -226,7 +233,7 @@ describe('LotteryRound', function() {
       }).then(function(success) {
         assert.equal(success, undefined, 'Should not succeed.');
       }).catch(function(err) {
-        assert.notEqual(err, undefined, 'Should thrown an error');
+        assertInvalidJump(err);
       });
     });
 

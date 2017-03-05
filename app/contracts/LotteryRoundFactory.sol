@@ -38,7 +38,8 @@ contract LotteryRoundFactory is LotteryRoundFactoryInterfaceV1, Owned {
     return address(newRound);
   }
 
-  // Happy birthday to the ground!
+  // Man, this ain't my dad!
+  // This is a cell phone!
   function () {
     throw;
   }

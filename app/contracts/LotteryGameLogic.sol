@@ -42,6 +42,13 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
     _;
   }
 
+  modifier onlyFromCurrentRound {
+    if (msg.sender != address(currentRound)) {
+      throw;
+    }
+    _;
+  }
+
   LotteryRoundFactoryInterfaceV1 public roundFactory;
 
   address public curator;
@@ -87,14 +94,14 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
       // we'll only make one attempt here to pay the winners
       currentRound.distributeWinnings();
       currentRound.claimOwnerFee(curator);
-    } else {
+    } else if (currentRound.balance > 0) {
       // otherwise, we have no winners, so just pull out funds in
       // preparation for the next round.
       currentRound.withdraw();
     }
 
     // clear this shit out.
-    currentRound = LotteryRoundInterface(0);
+    delete currentRound;
 
     // if there are or were any problems distributing winnings, the winners can attempt to withdraw
     // funds for themselves.  The contracts won't be destroyed so long as they have funds to pay out.
@@ -107,9 +114,7 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
     // noop, just used for depositing funds during an upgrade.
   }
 
-  // Man, this ain't my dad!
-  // This is a cell phone!
-  function () {
-    throw;
+  function () payable onlyFromCurrentRound {
+    // another noop, since we can only receive funds from the current round.
   }
 }

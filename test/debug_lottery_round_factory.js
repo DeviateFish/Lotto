@@ -6,6 +6,13 @@ var EmbarkSpec = Embark.initTests({
 });
 var web3 = EmbarkSpec.web3;
 
+var INVALID_JUMP = /invalid JUMP/;
+var OUT_OF_GAS = /out of gas/;
+
+function assertInvalidJump(err) {
+  assert.equal(INVALID_JUMP.test(err), true, 'Threw an invalid jump');
+}
+
 describe('DebugLotteryRoundFactory', function() {
   var saltHash, saltNHash;
   var salt = web3.sha3('secret');
@@ -119,7 +126,7 @@ describe('DebugLotteryRoundFactory', function() {
       return Promisify(DebugLotteryRoundFactory.createRound.bind(DebugLotteryRoundFactory, saltHash, saltNHash, { gas: '2000000', from: accounts[1] })).then(function(tx) {
         return getReceipt(tx);
       }).catch(function(err) {
-        assert.notEqual(err, undefined, 'Threw an error');
+        assertInvalidJump(err);
       });
     });
   });

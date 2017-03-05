@@ -10,11 +10,11 @@ contract DebugLotteryRound is LotteryRound {
 
   }
 
-  function forceClose() onlyOwner {
+  function forceClose() {
     closingBlock = block.number;
   }
 
-  function setWinningNumbers(bytes32 salt, uint8 N, bytes4 _winningNumbers) onlyOwner beforeDraw {
+  function setWinningNumbers(bytes32 salt, uint8 N, bytes4 _winningNumbers) beforeDraw {
     // Don't allow picking numbers multiple times.
     if (winningNumbersPicked == true) {
       throw;
