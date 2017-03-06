@@ -1,6 +1,6 @@
 var assert = require('assert');
 var Embark = require('embark');
-var sha3Utils = require('../lib/sha3-utils');
+var sha3Utils = require('../../lib/sha3-utils');
 var EmbarkSpec = Embark.initTests({
   embarkConfig: 'test/configs/lottery_round_factory.json'
 });

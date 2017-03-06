@@ -1,6 +1,6 @@
 var assert = require('assert');
 var Embark = require('embark');
-var sha3Utils = require('../lib/sha3-utils');
+var sha3Utils = require('../../lib/sha3-utils');
 var EmbarkSpec = Embark.initTests({
   embarkConfig: 'test/configs/lottery_round.json'
 });
@@ -42,7 +42,7 @@ function assertGoodReceipt(receipt) {
 }
 
 
-describe.skip('LotteryRound', function() {
+describe('LotteryRound', function() {
   var saltHash, saltNHash;
   var salt = web3.sha3('secret');
   var N = 12;

@@ -1,6 +1,6 @@
 var assert = require('assert');
 var Embark = require('embark');
-var sha3Utils = require('../lib/sha3-utils');
+var sha3Utils = require('../../lib/sha3-utils');
 var EmbarkSpec = Embark.initTests({
   embarkConfig: 'test/configs/lottery_game_logic_debug.json'
 });
@@ -51,24 +51,13 @@ describe('LotteryGameLogic', function() {
     saltHash = web3.sha3(saltHash, { encoding: 'hex' });
   }
   saltNHash = web3.sha3(sha3Utils.packHex(salt, sha3Utils.uintToHex(N, 8), salt), { encoding: 'hex' });
+  var ticketPrice = web3.toWei(1, 'finney');
 
   var accounts;
   var curator;
 
   function getBalance(account) {
     return Promisify(web3.eth.getBalance.bind(web3.eth, account));
-  }
-
-  function relinquishFactory() {
-    return Promisify(LotteryGameLogic.relinquishFactory.bind(LotteryGameLogic)).then(function(tx) {
-      return getReceipt(tx);
-    });
-  }
-
-  function setFactory(factory) {
-    return Promisify(LotteryGameLogic.setFactory.bind(LotteryGameLogic, factory)).then(function(tx) {
-      return getReceipt(tx);
-    });
   }
 
   function getFactory() {
@@ -154,6 +143,38 @@ describe('LotteryGameLogic', function() {
     });
   }
 
+  function deployFactory() {
+    return new Promise(function(resolve, reject) {
+      DebugLotteryRoundFactoryContract.new({
+        from: accounts[0],
+        gas: '4000000',
+        data: '0x' + EmbarkSpec.contractsManager.contracts.DebugLotteryRoundFactory.code
+      }, function(err, result) {
+        if (err) {
+          reject(err);
+        } else if (result.address) {
+          resolve(result);
+        }
+      });
+    });
+  }
+
+  function deployLogic(factoryAddress, _curator) {
+    return new Promise(function(resolve, reject) {
+      LotteryGameLogicContract.new(factoryAddress, _curator, {
+        from: accounts[0],
+        gas: '1000000',
+        data: '0x' + EmbarkSpec.contractsManager.contracts.LotteryGameLogic.code
+      }, function(err, result) {
+        if (err) {
+          reject(err);
+        } else if (result.address) {
+          resolve(result);
+        }
+      });
+    });
+  }
+
   before(function(done) {
     web3.eth.getAccounts(function(err, acc) {
       if (err) {
@@ -166,114 +187,36 @@ describe('LotteryGameLogic', function() {
 
   beforeEach(function(done) {
     curator = accounts[5];
-    var contractsConfig = {
-      LotteryGameLogic: {
-        gas: '1000000'
-      },
-      DebugLotteryRoundFactory: {
-        gas: '4000000'
-      }
-    };
+    var contractsConfig = {};
 
-    EmbarkSpec.deployAll(contractsConfig, done);
+    new Promise(function(resolve, reject) {
+      EmbarkSpec.deployAll(contractsConfig, resolve);
+    }).then(function() {
+      return deployFactory();
+    }).then(function(contract) {
+      DebugLotteryRoundFactory = contract;
+      return deployLogic(contract.address, curator);
+    }).then(function(contract) {
+      LotteryGameLogic = contract;
+      return assignFactory();
+    }).then(function() {
+      done();
+    }).catch(function(err) {
+      done(err);
+    });
   });
 
   describe('deployment', function() {
-    it('deploys successfully, with no initial configuration', function() {
+    it('deploys successfully, with the proper initial configuration', function() {
       assert.notEqual(LotteryGameLogic.address, 'undefined', 'Actually is deployed');
-      return Promisify(LotteryGameLogic.curator.bind(LotteryGameLogic)).then(function(address) {
-        assert.equal(address, NULL_ADDRESS, 'curator is null');
-        return Promisify(LotteryGameLogic.roundFactory.bind(LotteryGameLogic));
+      return getCurator().then(function(address) {
+        assert.equal(address, curator, 'curator is set');
+        return getFactory();
       }).then(function(address) {
-        assert.equal(address, NULL_ADDRESS, 'roundFactory is null');
-        return Promisify(LotteryGameLogic.currentRound.bind(LotteryGameLogic));
+        assert.equal(address, DebugLotteryRoundFactory.address, 'roundFactory is set');
+        return currentRound();
       }).then(function(address) {
         assert.equal(address, NULL_ADDRESS, 'currentRound is null');
-      });
-    });
-  });
-
-  describe('.relinquishFactory', function() {
-    it('cannot relinquish control when there is no factory', function() {
-      return relinquishFactory().catch(function(err) {
-        assertInvalidJump(err);
-      });
-    });
-
-    it('can relinquish control of the factory after it has been set', function() {
-      return assignFactory().then(function() {
-        return setFactory(DebugLotteryRoundFactory.address);
-      }).then(function() {
-        return relinquishFactory();
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return getFactory();
-      }).then(function(address) {
-        assert.equal(address, NULL_ADDRESS, 'roundFactory was cleared');
-      });
-    });
-
-    it('cannot relinquish control of the factory when a round is in progress', function() {
-      return assignFactory().then(function() {
-        return setFactory(DebugLotteryRoundFactory.address);
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return setCurator(curator);
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return startRound(saltHash, saltNHash);
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return relinquishFactory();
-      }).then(function(success) {
-        assert.equal(success, undefined, 'Should not succeed.');
-      }).catch(function(err) {
-        assertInvalidJump(err);
-      });
-    });
-  });
-
-  describe('.setFactory', function() {
-    it('can have a round factory set', function() {
-      return assignFactory().then(function() {
-        return setFactory(DebugLotteryRoundFactory.address);
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return getFactory();
-      }).then(function(address) {
-        assert.equal(address, DebugLotteryRoundFactory.address, 'roundFactory was set');
-      });
-    });
-
-    it('cannot have a factory set when one already is set', function() {
-      return assignFactory().then(function() {
-        return setFactory(DebugLotteryRoundFactory.address);
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return setFactory(accounts[2]); // any address will do
-      }).then(function(success) {
-        assert.equal(success, undefined, 'Should not succeed.');
-      }).catch(function(err) {
-        assertInvalidJump(err);
-      });
-    });
-
-    it('cannot have a factory set when a round is in progress', function() {
-      return assignFactory().then(function() {
-        return setFactory(DebugLotteryRoundFactory.address);
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return setCurator(curator);
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return startRound(saltHash, saltNHash);
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return setFactory(accounts[2]); // any address will do
-      }).then(function(success) {
-        assert.equal(success, undefined, 'Should not succeed.');
-      }).catch(function(err) {
-        assertInvalidJump(err);
       });
     });
   });
@@ -289,15 +232,7 @@ describe('LotteryGameLogic', function() {
     });
 
     it('cannot have a curator set when a round is started', function() {
-      return assignFactory().then(function() {
-        return setFactory(DebugLotteryRoundFactory.address);
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return setCurator(curator);
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return startRound(saltHash, saltNHash);
-      }).then(function(receipt) {
+      return startRound(saltHash, saltNHash).then(function(receipt) {
         assertGoodReceipt(receipt);
         return setCurator(accounts[1]);
       }).then(function(success) {
@@ -315,16 +250,30 @@ describe('LotteryGameLogic', function() {
       });
     });
 
-    it('returns false when no round is in progress', function() {
-      return assignFactory().then(function() {
-        return setFactory(DebugLotteryRoundFactory.address);
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return setCurator(curator);
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return startRound(saltHash, saltNHash);
-      }).then(function(receipt) {
+    it('returns true when there is no balance in the contract', function() {
+      return isUpgradeAllowed().then(function(result) {
+        assert.equal(result, true);
+      });
+    });
+
+    it('returns true when there is a small balance in the contract', function() {
+      return deposit(web3.toWei(100, 'szabo')).then(function() {
+        return isUpgradeAllowed();
+      }).then(function(result) {
+        assert.equal(result, true);
+      });
+    });
+
+    it('returns false when there is a large balance in the contract', function() {
+      return deposit(web3.toWei(1, 'ether')).then(function() {
+        return isUpgradeAllowed();
+      }).then(function(result) {
+        assert.equal(result, false);
+      });
+    });
+
+    it('returns false when a round is in progress', function() {
+      return startRound(saltHash, saltNHash).then(function(receipt) {
         assertGoodReceipt(receipt);
         return isUpgradeAllowed();
       }).then(function(result) {
@@ -334,18 +283,6 @@ describe('LotteryGameLogic', function() {
   });
 
   describe('.startRound', function() {
-    beforeEach(function(done) {
-      return setCurator(curator).then(function() {
-        return assignFactory();
-      }).then(function() {
-        return setFactory(DebugLotteryRoundFactory.address);
-      }).then(function() {
-        done();
-      }).catch(function(err) {
-        done(err);
-      });
-    });
-
     it('does not allow anyone other than the curator to start round', function() {
       return Promisify(LotteryGameLogic.startRound.bind(LotteryGameLogic, saltHash, saltNHash)).then(function(tx) {
         return getReceipt(tx);
@@ -403,18 +340,6 @@ describe('LotteryGameLogic', function() {
   });
 
   describe('.closeRound', function() {
-    beforeEach(function(done) {
-      return setCurator(curator).then(function() {
-        return assignFactory();
-      }).then(function() {
-        return setFactory(DebugLotteryRoundFactory.address);
-      }).then(function() {
-        done();
-      }).catch(function(err) {
-        done(err);
-      });
-    });
-
     it('cannot close the round before the round is done', function() {
       return startRound(saltHash, saltNHash).then(function(receipt) {
         assertGoodReceipt(receipt);
@@ -466,18 +391,6 @@ describe('LotteryGameLogic', function() {
   });
 
   describe('.finalizeRound', function() {
-    beforeEach(function(done) {
-      return setCurator(curator).then(function() {
-        return assignFactory();
-      }).then(function() {
-        return setFactory(DebugLotteryRoundFactory.address);
-      }).then(function() {
-        done();
-      }).catch(function(err) {
-        done(err);
-      });
-    });
-
     it('cannot finalize a round that is not closed', function() {
       return startRound(saltHash, saltNHash).then(function(receipt) {
         assertGoodReceipt(receipt);
@@ -576,39 +489,33 @@ describe('LotteryGameLogic', function() {
           return forceCloseRound(roundAddress);
         }).then(function(receipt) {
           assertGoodReceipt(receipt);
-          return setWinningNumbers(roundAddress, winningPick);
+          return setWinningPick(roundAddress, winningPick);
         });
       }).then(function(receipt) {
         assertGoodReceipt(receipt);
-        return finalizeRound();
-      }).then(function(receipt) {
-        assertGoodReceipt(receipt);
-        return getBalance(LotteryGameLogic.address);
-      }).then(function(logicBalance) {
-        assert.equal(logicBalance.equals(0), true, 'no money returned to the game logic');
-        return getBalance(winner);
-      }).then(function(winnerBalance) {
-        assert.equal(winnerBalance.equals(expectedPrizePool), true, 'winner was paid');
-        return getBalance(curator);
-      }).then(function(curatorBalance) {
-        assert.equal(curatorBalance.equals(expectedOwnerFee), true, 'owner was paid');
+        return Promise.all([
+          getBalance(LotteryGameLogic.address),
+          getBalance(winner),
+          getBalance(curator)
+        ]);
+      }).then(function(balances) {
+        return finalizeRound().then(function(receipt) {
+          assertGoodReceipt(receipt);
+          return Promise.all([
+            getBalance(LotteryGameLogic.address),
+            getBalance(winner),
+            getBalance(curator)
+          ]);
+        }).then(function(endBalances) {
+          assert.equal(endBalances[0].equals(0), true, 'no money returned to the game logic');
+          assert.equal(endBalances[1].equals(balances[1].plus(expectedPrizePool)), true, 'winner was paid');
+          assert.equal(endBalances[2].equals(balances[2].plus(expectedOwnerFee)), true, 'owner was paid');
+        });
       });
     });
   });
 
   describe('.deposit', function() {
-    beforeEach(function(done) {
-      return setCurator(curator).then(function() {
-        return assignFactory();
-      }).then(function() {
-        return setFactory(DebugLotteryRoundFactory.address);
-      }).then(function() {
-        done();
-      }).catch(function(err) {
-        done(err);
-      });
-    });
-
     it('only the owner can deposit funds', function() {
       return Promisify(LotteryGameLogic.deposit.bind(LotteryGameLogic, { value: web3.toWei(1, 'ether'), from: accounts[3] })).then(function(tx) {
         return getReceipt(tx);
@@ -623,7 +530,7 @@ describe('LotteryGameLogic', function() {
       var depositAmount = web3.toWei(1, 'ether');
       return deposit(depositAmount).then(function(receipt) {
         assertGoodReceipt(receipt);
-        return getBalance(LotteryGameLogic);
+        return getBalance(LotteryGameLogic.address);
       }).then(function(logicBalance) {
         assert.equal(logicBalance.equals(web3.toBigNumber(depositAmount)), true, 'funds are in the contract');
       });

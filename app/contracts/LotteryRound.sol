@@ -137,13 +137,6 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     accumulatedEntropy = block.blockhash(block.number - 1);
   }
 
-  // Man! What do I look like? A charity case?
-  // Please.
-  // You can't buy me, hot dog man!
-  function () {
-    throw;
-  }
-
   function generatePseudoRand() internal returns(bytes32) {
     uint8 pseudoRandomOffset = uint8(uint256(sha256(
       msg.sender,
@@ -338,14 +331,13 @@ contract LotteryRound is LotteryRoundInterface, Owned {
       return false;
     }
     if (winners.length > 0) {
-      bool unclaimed = false;
+      bool claimed = true;
       // if anyone hasn't been sent or claimed their earnings,
       // we still have money to pay out.
-      for (uint i = 0; i < winners.length; i++) {
-        address winner = winners[i];
-        unclaimed = unclaimed || winningsClaimable[winner];
+      for (uint i = 0; claimed && i < winners.length; i++) {
+        claimed = claimed && !winningsClaimable[winners[i]];
       }
-      return unclaimed;
+      return claimed;
     } else {
       // no winners, nothing to pay.
       return true;
@@ -353,12 +345,21 @@ contract LotteryRound is LotteryRoundInterface, Owned {
   }
 
   function claimPrize() afterDraw {
-    if (winningsClaimable[msg.sender]) {
-      winningsClaimable[msg.sender] = false;
-      if (!msg.sender.send(prizeValue)) {
-        // you really are a dumbshit, aren't you.
-        throw;
-      }
+    if (winningsClaimable[msg.sender] == false) {
+      // get. out!
+      throw;
     }
+    winningsClaimable[msg.sender] = false;
+    if (!msg.sender.send(prizeValue)) {
+      // you really are a dumbshit, aren't you.
+      throw;
+    }
+  }
+
+  // Man! What do I look like? A charity case?
+  // Please.
+  // You can't buy me, hot dog man!
+  function () {
+    throw;
   }
 }

@@ -55,33 +55,24 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
 
   LotteryRoundInterface public currentRound;
 
-  // used to give ownership of the factory back to the owner of this
-  // contract, so it can be safely torn down, etc.
-  // also used in preparation for upgrading the game logic contract.
-  function relinquishFactory() onlyOwner onlyWhenNoRound {
-    if (roundFactory == LotteryRoundFactoryInterfaceV1(0)) {
-      throw;
-    }
-    roundFactory.transferOwnership(owner);
-    delete roundFactory;
-  }
-
-  function setFactory(address newFactory) onlyOwner onlyWhenNoRound {
-    if (roundFactory != LotteryRoundFactoryInterfaceV1(0)) {
-      throw;
-    }
-    roundFactory = LotteryRoundFactoryInterfaceV1(newFactory);
+  function LotteryGameLogic(address _roundFactory, address _curator) {
+    roundFactory = LotteryRoundFactoryInterfaceV1(_roundFactory);
+    curator = _curator;
   }
 
   function setCurator(address newCurator) onlyOwner onlyWhenNoRound {
     curator = newCurator;
   }
 
+  // allow for some dust to be remaining in the account
+  // in case there have been rounding errors with payouts.
+  // otherwise, upgrades shouldn't be allowed until the existing rules
+  // have produced a winner, and only between rounds.
   function isUpgradeAllowed() constant returns(bool) {
-    return currentRound == LotteryRoundInterface(0);
+    return currentRound == LotteryRoundInterface(0) && this.balance < 1 finney;
   }
 
-  function startRound(bytes32 saltHash, bytes32 saltNHash) onlyCurator onlyWhenNoRound {
+  function startRound(bytes32 saltHash, bytes32 saltNHash)  onlyCurator onlyWhenNoRound {
     if (this.balance > 0) {
       currentRound = LotteryRoundInterface(
         roundFactory.createRound.value(this.balance)(saltHash, saltNHash)

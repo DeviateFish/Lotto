@@ -5,12 +5,9 @@ contract LotteryGameLogicInterface {
   function finalizeRound() returns(address);
   function isUpgradeAllowed() constant returns(bool);
   function transferOwnership(address newOwner);
-  function deposit() payable;
-  function withdraw();
+  function setCurator(address newCurator);
 }
 
 contract LotteryGameLogicInterfaceV1 is LotteryGameLogicInterface {
-  function relinquishFactory();
-  function setFactory(address newFactory);
-  function setCurator(address newCurator);
+  function deposit() payable;
 }

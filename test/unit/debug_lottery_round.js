@@ -1,6 +1,6 @@
 var assert = require('assert');
 var Embark = require('embark');
-var sha3Utils = require('../lib/sha3-utils');
+var sha3Utils = require('../../lib/sha3-utils');
 var EmbarkSpec = Embark.initTests({
   embarkConfig: 'test/configs/debug_lottery_round.json'
 });
@@ -116,6 +116,20 @@ describe('DebugLotteryRound', function() {
     return Promisify(DebugLotteryRound.setWinningNumbers.bind(DebugLotteryRound, salt, N, pick, { gas: '1000000' })).then(function(tx) {
       return getReceipt(tx);
     });
+  }
+
+  function claimPrize(winner) {
+    return Promisify(DebugLotteryRound.claimPrize.bind(DebugLotteryRound, { from: winner })).then(function(tx) {
+      return getReceipt(tx);
+    });
+  }
+
+  function paidOut() {
+    return Promisify(DebugLotteryRound.paidOut.bind(DebugLotteryRound));
+  }
+
+  function winningsClaimable(account) {
+    return Promisify(DebugLotteryRound.winningsClaimable.bind(DebugLotteryRound, account));
   }
 
   function getBalance(account) {
@@ -859,21 +873,218 @@ describe('DebugLotteryRound', function() {
     });
   });
 
-  // describe('.paidOut');
+  describe('.paidOut', function() {
+    beforeEach(function(done) {
+      var contractsConfig = {
+        DebugLotteryRound: {
+          args: [
+            saltHash,
+            saltNHash
+          ],
+          gas: '4000000',
+          value: web3.toWei(10, 'ether')
+        }
+      };
 
-  // describe('.claimPrize');
+      return new Promise(function(resolve) {
+        EmbarkSpec.deployAll(contractsConfig, function() {
+          resolve();
+        });
+      }).then(function() {
+        return pickTicket('0x44332211', accounts[1]);
+      }).then(function() {
+        return pickTicket('0x44332211', accounts[2]);
+      }).then(function() {
+        return forceClose();
+      }).then(function() {
+        done();
+      }).catch(function(err) {
+        done(err);
+      });
+    });
+
+    it('returns false when numbers have yet to be picked', function() {
+      return paidOut().then(function(result) {
+        assert.equal(result, false, 'paid out is false');
+      });
+    });
+
+    it('returns false when no one has been paid', function() {
+      var winningPick = '0x44332211';
+      return setWinningPick(winningPick).then(function(receipt) {
+        assertGoodReceipt(receipt);
+        return paidOut();
+      }).then(function(result) {
+        assert.equal(result, false, 'paid out is false');
+      });
+    });
+
+    it('returns false when one winner has claimed their prize', function() {
+      var winningPick = '0x44332211';
+      var winners = [accounts[1], accounts[2]];
+      return setWinningPick(winningPick).then(function(receipt) {
+        assertGoodReceipt(receipt);
+        return claimPrize(winners[0]);
+      }).then(function(receipt) {
+        assertGoodReceipt(receipt);
+        return paidOut();
+      }).then(function(result) {
+        assert.equal(result, false, 'paid out is false');
+      });
+    });
+
+    it('returns true when all winners have claimed their prize', function() {
+      var winningPick = '0x44332211';
+      var winners = [accounts[1], accounts[2]];
+      return setWinningPick(winningPick).then(function(receipt) {
+        assertGoodReceipt(receipt);
+        return claimPrize(winners[0]);
+      }).then(function(receipt) {
+        assertGoodReceipt(receipt);
+        return claimPrize(winners[1]);
+      }).then(function(receipt) {
+        assertGoodReceipt(receipt);
+        return paidOut();
+      }).then(function(result) {
+        assert.equal(result, true, 'paid out is true');
+      });
+    });
+
+    it('returns true when there is no winner', function() {
+      var winningPick = '0x11223344';
+      return setWinningPick(winningPick).then(function(receipt) {
+        assertGoodReceipt(receipt);
+        return paidOut();
+      }).then(function(result) {
+        assert.equal(result, true, 'paid out is true');
+      });
+    });
+  });
+
+  describe('.claimPrize', function() {
+    var expectedTicketTotal = web3.toBigNumber(web3.toWei(2, 'finney'));
+    var expectedPrizePool = expectedTicketTotal.times(payoutFraction).dividedBy(1000);
+    var expectedOwnerFee = expectedTicketTotal.minus(expectedPrizePool);
+    var winners;
+
+    beforeEach(function(done) {
+      var winningPick = '0x44332211';
+      var contractsConfig = {
+        DebugLotteryRound: {
+          args: [
+            saltHash,
+            saltNHash
+          ],
+          gas: '4000000',
+          value: web3.toWei(10, 'ether')
+        }
+      };
+
+      winners = [accounts[1], accounts[2]];
+
+      return new Promise(function(resolve) {
+        EmbarkSpec.deployAll(contractsConfig, function() {
+          resolve();
+        });
+      }).then(function() {
+        return Promise.all(winners.map(function(winner) {
+          return pickTicket(winningPick, winner);
+        }));
+      }).then(function() {
+        return forceClose();
+      }).then(function() {
+        return setWinningPick(winningPick);
+      }).then(function() {
+        done();
+      }).catch(function(err) {
+        done(err);
+      });
+    });
+
+    it('throws when the sender is not a winner', function() {
+      return claimPrize(accounts[3]).then(function(receipt) {
+        assert.equal(receipt, undefined, 'Should not succeed.');
+      }).catch(function(err) {
+        assertInvalidJump(err);
+      });
+    });
+
+    it('pays the winner', function() {
+      var winner = winners[0];
+      var expectedPrizeValue = expectedPrizePool.dividedBy(2).floor();
+      return getBalance(winner).then(function(balance) {
+        var gasPaid;
+        return claimPrize(winner).then(function(receipt) {
+          gasPaid = web3.toBigNumber(receipt.gasUsed);
+          assertGoodReceipt(receipt);
+          return Promisify(web3.eth.getTransaction.bind(web3.eth, receipt.transactionHash));
+        }).then(function(transaction) {
+          gasPaid = gasPaid.times(transaction.gasPrice);
+          return getBalance(winner);
+        }).then(function(newBalance) {
+          assert.equal(newBalance.equals(balance.plus(expectedPrizeValue).minus(gasPaid)), true, 'winner has the correct balance');
+        });
+      });
+    });
+  });
 
   describe('.winningsClaimable', function() {
-    // return Promise.all(winners.map(function(winner) {
-    //       return Promisify(DebugLotteryRound.winningsClaimable.bind(DebugLotteryRound, winner));
-    //     }));
-    //   }).then(function(results) {
-    //     results.forEach(function(result) {
-    //       assert.equal(result, true, 'Winnings are claimable by the winner');
-    //     });
-    //     return Promisify(DebugLotteryRound.winningsClaimable.bind(DebugLotteryRound, accounts[2]));
-    //   }).then(function(result) {
-    //     assert.equal(result, false, 'Winnings are not claimable by a non-winner');
+    var winners;
 
+    beforeEach(function(done) {
+      var winningPick = '0x44332211';
+      var contractsConfig = {
+        DebugLotteryRound: {
+          args: [
+            saltHash,
+            saltNHash
+          ],
+          gas: '4000000',
+          value: web3.toWei(10, 'ether')
+        }
+      };
+
+      winners = [accounts[1], accounts[2]];
+
+      return new Promise(function(resolve) {
+        EmbarkSpec.deployAll(contractsConfig, function() {
+          resolve();
+        });
+      }).then(function() {
+        return Promise.all(winners.map(function(winner) {
+          return pickTicket(winningPick, winner);
+        }));
+      }).then(function() {
+        return forceClose();
+      }).then(function() {
+        return setWinningPick(winningPick);
+      }).then(function() {
+        done();
+      }).catch(function(err) {
+        done(err);
+      });
+    });
+
+    it('returns true for unpaid winners', function() {
+      return winningsClaimable(winners[0]).then(function(result) {
+        assert.equal(result, true, 'is true for an unpaid winner');
+      });
+    });
+
+    it('returns false for non-winners', function() {
+      return winningsClaimable(accounts[4]).then(function(result) {
+        assert.equal(result, false, 'is true for an unpaid winner');
+      });
+    });
+
+    it('returns false for paid winners', function() {
+      var winner = winners[0];
+      return claimPrize(winner).then(function(receipt) {
+        assertGoodReceipt(receipt);
+        return winningsClaimable(winner);
+      }).then(function(result) {
+        assert.equal(result, false, 'is false for a paid winner');
+      });
+    });
   });
 });

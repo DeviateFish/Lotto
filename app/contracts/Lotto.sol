@@ -11,7 +11,7 @@ contract Lotto is Owned {
   LotteryGameLogicInterface public gameLogic;
 
   modifier onlyWhenUpgradeable {
-    if (gameLogic != LotteryGameLogicInterface(0) && !gameLogic.isUpgradeAllowed()) {
+    if (!gameLogic.isUpgradeAllowed()) {
       throw;
     }
     _;
@@ -24,26 +24,18 @@ contract Lotto is Owned {
     _;
   }
 
+  function Lotto(address initialGameLogic) {
+    gameLogic = LotteryGameLogicInterface(initialGameLogic);
+  }
+
   // assumes that logic and factories are 1:1
   // note that this means an upgrade of the game logic that doesn't require
   // a factory upgrade will likely require a new factory contract anyway.
   // setting the game logic here presumes the incoming gamelogic contract
   // has already been configured.
   function setNewGameLogic(address newLogic) onlyOwner onlyWhenUpgradeable {
-    relinquishGameLogic();
+    gameLogic.transferOwnership(owner);
     gameLogic = LotteryGameLogicInterface(newLogic);
-    if (this.balance > 0) {
-      gameLogic.deposit.value(this.balance)();
-    }
-  }
-
-  function relinquishGameLogic() onlyOwner onlyWhenUpgradeable {
-    if (gameLogic != LotteryGameLogicInterface(0)) {
-      // get any residual/carryover balance out.
-      gameLogic.withdraw();
-      // transfer ownership to the owner
-      gameLogic.transferOwnership(owner);
-    }
   }
 
   function currentRound() constant returns(address) {
@@ -67,10 +59,10 @@ contract Lotto is Owned {
     return previousRounds.length;
   }
 
-  // only the game logic contract should be sending this money,
-  // and only when it's being upgraded and carrying a balance
-  // from a previous round.
-  function () payable onlyGameLogic {
+  // You must think I'm a joke
+  // I ain't gonna be part of your system
+  // Man! Pump that garbage in another man's veins
+  function () {
     throw;
   }
 }
