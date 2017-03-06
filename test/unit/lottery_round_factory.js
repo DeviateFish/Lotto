@@ -53,6 +53,8 @@ describe('LotteryRoundFactory', function() {
   saltNHash = web3.sha3(sha3Utils.packHex(salt, sha3Utils.uintToHex(N, 8), salt), { encoding: 'hex' });
 
   var accounts;
+  var roundLength = 12500;
+  var version = '0.1.0';
 
   function validateCreatedEvent(version, blockNumber) {
     return getEvent(LotteryRoundFactory, 'LotteryRoundCreated', blockNumber).then(function(results) {
@@ -74,6 +76,19 @@ describe('LotteryRoundFactory', function() {
       return Promisify(newRound.saltNHash.bind(newRound));
     }).then(function(contractSaltNHash) {
       assert.equal(contractSaltNHash, _saltNHash, 'saltNHash is publicly verifiable');
+    });
+  }
+
+  function validateStartedEvent(roundAddress, _saltHash, _saltNHash, _closingBlock, _version, blockNumber) {
+    var contract = LotteryRoundContract.at(roundAddress);
+    return getEvent(contract, 'LotteryRoundStarted', blockNumber).then(function(results) {
+      assert.equal(results.length, 1, 'Only one event logged');
+      var result = results[0];
+      assert.equal(result.args.saltHash, _saltHash, 'Logs the proper saltHash');
+      assert.equal(result.args.saltNHash, _saltNHash, 'Logs the proper saltNHash');
+      assert.equal(result.args.closingBlock, _closingBlock, 'Logs the proper closingBlock');
+      assert.equal(result.args.version, _version, 'Logs the proper version');
+      return result.args.picks;
     });
   }
 
@@ -119,12 +134,13 @@ describe('LotteryRoundFactory', function() {
         return getReceipt(tx);
       }).then(function(receipt) {
         assertGoodReceipt(receipt);
-        return validateCreatedEvent(receipt.blockNumber);
-      }).then(function(roundAddress) {
-        return validateNewRound(roundAddress, saltHash, saltNHash).then(function() {
-          return getBalance(roundAddress);
-        }).then(function(newRoundBalance) {
-          assert.equal(newRoundBalance.equals(0), true, 'has no initial balance.');
+        return validateCreatedEvent(receipt.blockNumber).then(function(roundAddress) {
+          return validateNewRound(roundAddress, saltHash, saltNHash).then(function() {
+            return getBalance(roundAddress);
+          }).then(function(newRoundBalance) {
+            assert.equal(newRoundBalance.equals(0), true, 'has no initial balance.');
+            return validateStartedEvent(roundAddress, saltHash, saltNHash, receipt.blockNumber + roundLength, version, receipt.blockNumber);
+          });
         });
       });
     });
@@ -146,8 +162,8 @@ describe('LotteryRoundFactory', function() {
     });
 
     it('a non-owner cannot create a round', function() {
-      return Promisify(LotteryRoundFactory.createRound.bind(LotteryRoundFactory, saltHash, saltNHash, { gas: '2000000', from: accounts[1] })).then(function(tx) {
-        return getReceipt(tx);
+      return Promisify(LotteryRoundFactory.createRound.bind(LotteryRoundFactory, saltHash, saltNHash, { gas: '2000000', from: accounts[1] })).then(function(txhash) {
+        assert.equal(txhash, undefined, 'Should not succeed.');
       }).catch(function(err) {
         assertInvalidJump(err);
       });

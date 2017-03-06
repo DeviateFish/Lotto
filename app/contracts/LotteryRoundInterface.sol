@@ -16,4 +16,5 @@ contract LotteryRoundInterface {
   function claimPrize();
 
   function paidOut() constant returns(bool);
+  function transferOwnership(address newOwner);
 }

@@ -1,9 +1,11 @@
 {
   "contracts": [
+    "app/contracts/Lotto.sol",
     "app/contracts/LotteryGameLogic.sol",
     "app/contracts/LotteryGameLogicInterface.sol",
-    "app/contracts/LotteryRoundFactory.sol",
+    "app/contracts/DebugLotteryRoundFactory.sol",
     "app/contracts/LotteryRoundFactoryInterface.sol",
+    "app/contracts/DebugLotteryRound.sol",
     "app/contracts/LotteryRound.sol",
     "app/contracts/LotteryRoundInterface.sol",
     "app/contracts/Common.sol"

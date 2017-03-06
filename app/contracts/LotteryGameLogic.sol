@@ -7,6 +7,12 @@ import "LotteryGameLogicInterface.sol";
 
 contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
 
+  LotteryRoundFactoryInterfaceV1 public roundFactory;
+
+  address public curator;
+
+  LotteryRoundInterface public currentRound;
+
   modifier onlyWhenNoRound {
     if (currentRound != LotteryRoundInterface(0)) {
       throw;
@@ -49,30 +55,40 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
     _;
   }
 
-  LotteryRoundFactoryInterfaceV1 public roundFactory;
-
-  address public curator;
-
-  LotteryRoundInterface public currentRound;
-
+  /**
+   * Creates the core logic of the lottery.  Requires a round factory
+   * and an initial curator.
+   * @param _roundFactory        The factory to generate new rounds
+   * @param _curator             The initial curator
+   */
   function LotteryGameLogic(address _roundFactory, address _curator) {
     roundFactory = LotteryRoundFactoryInterfaceV1(_roundFactory);
     curator = _curator;
   }
 
-  function setCurator(address newCurator) onlyOwner onlyWhenNoRound {
+  /**
+   * Allows the curator to hand over curation responsibilities to someone else.
+   * @param newCurator            The new curator
+   */
+  function setCurator(address newCurator) onlyCurator onlyWhenNoRound {
     curator = newCurator;
   }
 
-  // allow for some dust to be remaining in the account
-  // in case there have been rounding errors with payouts.
-  // otherwise, upgrades shouldn't be allowed until the existing rules
-  // have produced a winner, and only between rounds.
+  /**
+   * Specifies whether or not upgrading this contract is allowed.  In general, if there
+   * is a round underway, or this contract is holding a balance, upgrading is not allowed.
+   */
   function isUpgradeAllowed() constant returns(bool) {
     return currentRound == LotteryRoundInterface(0) && this.balance < 1 finney;
   }
 
-  function startRound(bytes32 saltHash, bytes32 saltNHash)  onlyCurator onlyWhenNoRound {
+  /**
+   * Starts a new round.  Can only be started by the curator, and only when there is no round
+   * currently underway
+   * @param  saltHash          Secret salt, hashed N times.
+   * @param  saltNHash         Proof of N, in the form of sha3(salt, N, salt)
+   */
+  function startRound(bytes32 saltHash, bytes32 saltNHash) onlyCurator onlyWhenNoRound {
     if (this.balance > 0) {
       currentRound = LotteryRoundInterface(
         roundFactory.createRound.value(this.balance)(saltHash, saltNHash)
@@ -82,10 +98,22 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
     }
   }
 
+  /**
+   * Reveal the chosen salt and number of hash iterations, then close the current roundn
+   * and pick the winning numbers
+   * @param  salt              The original salt
+   * @param  N                 The original N
+   */
   function closeRound(bytes32 salt, uint8 N) onlyCurator onlyBeforeDraw {
     currentRound.closeGame(salt, N);
   }
 
+  /**
+   * Finalize the round before returning it back to the the parent contract for
+   * historical purposes.  Attempts to pay winners and the curator if there was a winning
+   * draw, otherwise, pulls the balance out of the round before handing over ownership
+   * to the curator.
+   */
   function finalizeRound() onlyOwner onlyAfterDraw returns(address) {
     address roundAddress = address(currentRound);
     if (!currentRound.paidOut()) {
@@ -98,6 +126,11 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
       currentRound.withdraw();
     }
 
+    // be sure someone can handle disputes, etc, if they arise.
+    // not that they'll be able to *do* anything, but they can at least
+    // try calling `distributeWinnings()` again...
+    currentRound.transferOwnership(curator);
+
     // clear this shit out.
     delete currentRound;
 
@@ -108,10 +141,17 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
     return roundAddress;
   }
 
+  /**
+   * Mostly just used for testing.  Technically, this contract may be seeded with an initial deposit
+   * before
+   */
   function deposit() payable onlyOwner onlyWhenNoRound {
     // noop, just used for depositing funds during an upgrade.
   }
 
+  /**
+   * Only accept payments from the current round.  Required due to calling `.withdraw` at round's end.
+   */
   function () payable onlyFromCurrentRound {
     // another noop, since we can only receive funds from the current round.
   }

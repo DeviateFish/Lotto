@@ -1,7 +1,6 @@
 pragma solidity ^0.4.8;
 
 import "Common.sol";
-import "LotteryRoundFactoryInterface.sol";
 import "LotteryGameLogicInterface.sol";
 
 contract Lotto is Owned {
@@ -45,14 +44,6 @@ contract Lotto is Owned {
   function finalizeRound() onlyOwner {
     address roundAddress = gameLogic.finalizeRound();
     previousRounds.push(roundAddress);
-  }
-
-  function acquireRound(uint roundIndex) onlyOwner {
-    if (roundIndex >= previousRounds.length) {
-      throw;
-    }
-    Owned round = Owned(previousRounds[roundIndex]);
-    round.transferOwnership(owner);
   }
 
   function previousRoundsCount() constant returns(uint) {

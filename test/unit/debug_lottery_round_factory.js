@@ -54,7 +54,7 @@ describe('DebugLotteryRoundFactory', function() {
 
   var accounts;
 
-  function validateCreatedEvent(version, blockNumber) {
+  function validateCreatedEvent(blockNumber) {
     return getEvent(DebugLotteryRoundFactory, 'LotteryRoundCreated', blockNumber).then(function(results) {
       assert.equal(results.length, 1, 'One event emitted from DebugLotteryRoundFactory');
       var result = results[0];
