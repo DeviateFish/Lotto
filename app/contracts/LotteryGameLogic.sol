@@ -59,10 +59,17 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
   // contract, so it can be safely torn down, etc.
   // also used in preparation for upgrading the game logic contract.
   function relinquishFactory() onlyOwner onlyWhenNoRound {
+    if (roundFactory == LotteryRoundFactoryInterfaceV1(0)) {
+      throw;
+    }
     roundFactory.transferOwnership(owner);
+    delete roundFactory;
   }
 
   function setFactory(address newFactory) onlyOwner onlyWhenNoRound {
+    if (roundFactory != LotteryRoundFactoryInterfaceV1(0)) {
+      throw;
+    }
     roundFactory = LotteryRoundFactoryInterfaceV1(newFactory);
   }
 
@@ -71,7 +78,7 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
   }
 
   function isUpgradeAllowed() constant returns(bool) {
-    return currentRound != LotteryRoundInterface(0);
+    return currentRound == LotteryRoundInterface(0);
   }
 
   function startRound(bytes32 saltHash, bytes32 saltNHash) onlyCurator onlyWhenNoRound {

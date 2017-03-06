@@ -8,7 +8,6 @@ contract Lotto is Owned {
 
   address[] public previousRounds;
 
-  LotteryRoundFactoryInterface public roundFactory;
   LotteryGameLogicInterface public gameLogic;
 
   modifier onlyWhenUpgradeable {
@@ -25,35 +24,26 @@ contract Lotto is Owned {
     _;
   }
 
-  function linkFactory() internal {
-    if (roundFactory != LotteryRoundFactoryInterface(0) && gameLogic != LotteryGameLogicInterface(0)) {
-      roundFactory.transferOwnership(gameLogic);
-      gameLogic.setFactory(roundFactory);
-    }
-  }
-
-  function setNewFactory(address newFactory) onlyOwner onlyWhenUpgradeable {
-    if (roundFactory != LotteryRoundFactoryInterface(0)) {
-      roundFactory.transferOwnership(owner);
-    }
-    roundFactory = LotteryRoundFactoryInterface(newFactory);
-    linkFactory();
-  }
-
+  // assumes that logic and factories are 1:1
+  // note that this means an upgrade of the game logic that doesn't require
+  // a factory upgrade will likely require a new factory contract anyway.
+  // setting the game logic here presumes the incoming gamelogic contract
+  // has already been configured.
   function setNewGameLogic(address newLogic) onlyOwner onlyWhenUpgradeable {
-    if (gameLogic != LotteryGameLogicInterface(0)) {
-      // get any residual/carryover balance out.
-      gameLogic.withdraw();
-      // give up the factory
-      gameLogic.relinquishFactory();
-      // transfer ownership to the curator (owner);
-      gameLogic.transferOwnership(owner);
-    }
+    relinquishGameLogic();
     gameLogic = LotteryGameLogicInterface(newLogic);
     if (this.balance > 0) {
       gameLogic.deposit.value(this.balance)();
     }
-    linkFactory();
+  }
+
+  function relinquishGameLogic() onlyOwner onlyWhenUpgradeable {
+    if (gameLogic != LotteryGameLogicInterface(0)) {
+      // get any residual/carryover balance out.
+      gameLogic.withdraw();
+      // transfer ownership to the owner
+      gameLogic.transferOwnership(owner);
+    }
   }
 
   function currentRound() constant returns(address) {
