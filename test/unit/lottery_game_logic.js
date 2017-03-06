@@ -71,7 +71,7 @@ describe('LotteryGameLogic', function() {
   }
 
   function setCurator(address) {
-    return Promisify(LotteryGameLogic.setCurator.bind(LotteryGameLogic, address)).then(function(tx) {
+    return Promisify(LotteryGameLogic.setCurator.bind(LotteryGameLogic, address, { from: curator })).then(function(tx) {
       return getReceipt(tx);
     });
   }
@@ -222,6 +222,14 @@ describe('LotteryGameLogic', function() {
   });
 
   describe('.setCurator', function() {
+    it('does not allow anyone but the curator to set a new curator', function() {
+      return Promisify(LotteryGameLogic.setCurator.bind(LotteryGameLogic, address)).then(function(success) {
+        assert.equal(success, undefined, 'Should not succeed.');
+      }).catch(function(err) {
+        assertInvalidJump(err);
+      });
+    });
+
     it('can have a curator set', function() {
       return setCurator(curator).then(function(receipt) {
         assertGoodReceipt(receipt);
@@ -474,7 +482,7 @@ describe('LotteryGameLogic', function() {
     });
 
     it('pays out winnings if there are winners', function() {
-      var winningPick = '0x11223344';
+      var winningPick = '0x00112233';
       var winner = accounts[2];
       var payoutFraction = 950;
       var expectedTicketTotal = web3.toBigNumber(web3.toWei(1, 'finney'));

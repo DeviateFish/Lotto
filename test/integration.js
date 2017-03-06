@@ -57,9 +57,9 @@ describe('Integration', function() {
 
   var accounts;
   var curator;
-  var roundLength = 12500;
+  var roundLength = 43200;
   var version = '0.1.0';
-  var validTicketMask = 0x7f7f7f7f;
+  var validTicketMask = 0x3f3f3f3f;
 
   function getBalance(account) {
     return Promisify(web3.eth.getBalance.bind(web3.eth, account));
@@ -362,20 +362,20 @@ describe('Integration', function() {
         return validateNewRound(newRoundAddress, saltHash, saltNHash).then(function() {
           return validateStartedEvent(newRoundAddress, saltHash, saltNHash, blockNum + roundLength, version, blockNum);
         }).then(function(){
-          return pickTicket(newRoundAddress, '0x11223344', accounts[2]);
+          return pickTicket(newRoundAddress, '0x00112233', accounts[2]);
         }).then(function(receipt) {
           assertGoodReceipt(receipt);
-          return validateDrawEvent(newRoundAddress, accounts[2], '0x11223344', receipt.blockNumber);
+          return validateDrawEvent(newRoundAddress, accounts[2], '0x00112233', receipt.blockNumber);
         }).then(function() {
           return pickTicket(newRoundAddress, '0x00110011', accounts[3]);
         }).then(function(receipt) {
           assertGoodReceipt(receipt);
           return validateDrawEvent(newRoundAddress, accounts[3], '0x00110011', receipt.blockNumber);
         }).then(function() {
-          return pickTicket(newRoundAddress, '0x55443322', accounts[4]);
+          return pickTicket(newRoundAddress, '0x05040302', accounts[4]);
         }).then(function(receipt) {
           assertGoodReceipt(receipt);
-          return validateDrawEvent(newRoundAddress, accounts[4], '0x55443322', receipt.blockNumber);
+          return validateDrawEvent(newRoundAddress, accounts[4], '0x05040302', receipt.blockNumber);
         }).then(function() {
           return randomTicket(newRoundAddress, accounts[5]);
         }).then(function(receipt) {

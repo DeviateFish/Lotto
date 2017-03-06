@@ -2,6 +2,10 @@ pragma solidity ^0.4.8;
 
 import "LotteryRound.sol";
 
+/**
+ * Wraps a LotteryRound to provide the ability to circumvent some logic for testing purposes.
+ * Lets us do things like not wait until the closing block to pick numbers, etc.
+ */
 contract DebugLotteryRound is LotteryRound {
   function DebugLotteryRound(
     bytes32 _saltHash,
@@ -10,10 +14,19 @@ contract DebugLotteryRound is LotteryRound {
 
   }
 
+  /**
+   * Bypass the rules and close the game early.
+   */
   function forceClose() {
     closingBlock = block.number;
   }
 
+  /**
+   * Bypass the PRNG and set the winning numbers directly.
+   * @param salt              hidden entropy
+   * @param N                 entropy key
+   * @param _winningNumbers  pick these numbers as the winning numbers.
+   */
   function setWinningNumbers(bytes32 salt, uint8 N, bytes4 _winningNumbers) beforeDraw {
     // Don't allow picking numbers multiple times.
     if (winningNumbersPicked == true) {
@@ -24,18 +37,6 @@ contract DebugLotteryRound is LotteryRound {
       throw;
     }
 
-    // uint8 pseudoRandomOffset = uint8(uint256(sha256(
-    //   salt,
-    //   accumulatedEntropy
-    // )) & 0xff);
-    // // WARNING: This assumes block.number > 256
-    // uint256 pseudoRandomBlock = block.number - pseudoRandomOffset - 1;
-    // bytes32 pseudoRand = sha3(
-    //   salt,
-    //   block.blockhash(pseudoRandomBlock),
-    //   accumulatedEntropy
-    // );
-    // winningNumbers = pickValues(pseudoRand);
     finalizeRound(salt, N, _winningNumbers);
   }
 }

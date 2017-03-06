@@ -3,6 +3,15 @@ pragma solidity ^0.4.8;
 import "Common.sol";
 import "LotteryGameLogicInterface.sol";
 
+/**
+ * This contract is pretty generic, as it really only serves to maintain a constant
+ * address on the blockchain (through upgrades to the game logic), and to maintain
+ * a history of previous rounds.  Note that the rounds will have had ownership
+ * transferred to the curator (most likely), so there's mostly just here for
+ * accounting purposes.
+ *
+ * A side effect of this is that finalizing a round has to happen from here.
+ */
 contract Lotto is Owned {
 
   address[] public previousRounds;
@@ -23,29 +32,45 @@ contract Lotto is Owned {
     _;
   }
 
+  /**
+   * Creates a new lottery contract.
+   * @param initialGameLogic   The starting game logic.
+   */
   function Lotto(address initialGameLogic) {
     gameLogic = LotteryGameLogicInterface(initialGameLogic);
   }
 
-  // assumes that logic and factories are 1:1
-  // note that this means an upgrade of the game logic that doesn't require
-  // a factory upgrade will likely require a new factory contract anyway.
-  // setting the game logic here presumes the incoming gamelogic contract
-  // has already been configured.
+  /**
+   * Upgrade the game logic.  Only possible to do when the game logic
+   * has deemed it clear to do so.  Hands the old one over to the owner
+   * for cleanup.  Expects the new logic to already be configured.
+   * @param newLogic   New, already-configured game logic.
+   */
   function setNewGameLogic(address newLogic) onlyOwner onlyWhenUpgradeable {
     gameLogic.transferOwnership(owner);
     gameLogic = LotteryGameLogicInterface(newLogic);
   }
 
+  /**
+   * Returns the current round.
+   * @return address The current round (when applicable)
+   */
   function currentRound() constant returns(address) {
     return gameLogic.currentRound();
   }
 
+  /**
+   * Used to finalize (e.g. pay winners) the current round, then log
+   * it in the history.
+   */
   function finalizeRound() onlyOwner {
     address roundAddress = gameLogic.finalizeRound();
     previousRounds.push(roundAddress);
   }
 
+  /**
+   * Tells how many previous rounds exist.
+   */
   function previousRoundsCount() constant returns(uint) {
     return previousRounds.length;
   }

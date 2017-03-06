@@ -13,6 +13,11 @@ contract LotteryRoundFactory is LotteryRoundFactoryInterfaceV1, Owned {
     string version
   );
 
+  /**
+   * Creates a new round, and sets the secret (hashed) salt and proof of N.
+   * @param _saltHash     Hashed salt
+   * @param _saltNHash    Hashed proof of N
+   */
   function createRound(
     bytes32 _saltHash,
     bytes32 _saltNHash

@@ -54,7 +54,7 @@ describe('LotteryRound', function() {
 
   var accounts;
   var ticketPrice = web3.toWei(1, 'finney');
-  var validTicketMask = 0x7f7f7f7f;
+  var validTicketMask = 0x3f3f3f3f;
 
   function pickTicket(pick, from) {
     return Promisify(
@@ -208,7 +208,7 @@ describe('LotteryRound', function() {
     });
 
     it('Rejects picks when no payment is provided', function() {
-      return Promisify(LotteryRound.pickTicket.bind(LotteryRound, '0x11223344', { from: accounts[1], gas: '1000000' })).then(function(txhash) {
+      return Promisify(LotteryRound.pickTicket.bind(LotteryRound, '0x00112233', { from: accounts[1], gas: '1000000' })).then(function(txhash) {
         assert.equal(txhash, undefined, 'Should not succeed.');
       }).catch(function(err) {
         assertInvalidJump(err);
@@ -216,7 +216,7 @@ describe('LotteryRound', function() {
     });
 
     it('Accepts specific picks when payment is provided', function() {
-      var pick = '0x11223344';
+      var pick = '0x00112233';
       return pickTicket(pick, accounts[1]).then(function(receipt) {
         assertGoodReceipt(receipt);
         return validateDrawEvent(accounts[1], pick, receipt.blockNumber);
@@ -224,7 +224,7 @@ describe('LotteryRound', function() {
     });
 
     it('Allows duplicate specific picks from different users', function() {
-      var pick = '0x23456701';
+      var pick = '0x23011023';
       return pickTicket(pick, accounts[1]).then(function(receipt) {
         assertGoodReceipt(receipt);
         return validateDrawEvent(accounts[1], pick, receipt.blockNumber);

@@ -53,7 +53,7 @@ describe('LotteryRoundFactory', function() {
   saltNHash = web3.sha3(sha3Utils.packHex(salt, sha3Utils.uintToHex(N, 8), salt), { encoding: 'hex' });
 
   var accounts;
-  var roundLength = 12500;
+  var roundLength = 43200;
   var version = '0.1.0';
 
   function validateCreatedEvent(version, blockNumber) {

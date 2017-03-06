@@ -53,7 +53,7 @@ describe('DebugLotteryRound', function() {
 
   var accounts;
   var ticketPrice = web3.toWei(1, 'finney');
-  var validTicketMask = 0x7f7f7f7f;
+  var validTicketMask = 0x3f3f3f3f;
   var payoutFraction = 950;
 
 
@@ -377,15 +377,15 @@ describe('DebugLotteryRound', function() {
           resolve();
         });
       }).then(function() {
-        return pickTicket('0x11223344', accounts[1]);
+        return pickTicket('0x00112233', accounts[1]);
       }).then(function() {
-        return pickTicket('0x11224433', accounts[2]);
+        return pickTicket('0x33001122', accounts[2]);
       }).then(function() {
-        return pickTicket('0x11224433', accounts[2]); // special case, 2x tickets, same account, same picks
+        return pickTicket('0x33001122', accounts[2]); // special case, 2x tickets, same account, same picks
       }).then(function() {
-        return pickTicket('0x44332211', accounts[3]);
+        return pickTicket('0x34333231', accounts[3]);
       }).then(function() {
-        return pickTicket('0x44332211', accounts[4]);
+        return pickTicket('0x34333231', accounts[4]);
       }).then(function() {
         return forceClose();
       }).then(function() {
@@ -396,7 +396,7 @@ describe('DebugLotteryRound', function() {
     });
 
     it('broadcasts a completion event', function() {
-      var winningPick = '0x43322110';
+      var winningPick = '0x01122334';
       return setWinningPick(winningPick).then(function(receipt) {
         assertGoodReceipt(receipt);
         return validateCompletedEvent(salt, N, receipt.blockNumber);
@@ -437,7 +437,7 @@ describe('DebugLotteryRound', function() {
     });
 
     describe('multiple winners', function() {
-      var winningPick = '0x44332211';
+      var winningPick = '0x34333231';
       var winners;
       var blockNumber;
 
@@ -475,7 +475,7 @@ describe('DebugLotteryRound', function() {
     });
 
     describe('winner with duplicate tickets', function() {
-      var winningPick = '0x11224433';
+      var winningPick = '0x33001122';
       var winner;
       var blockNumber;
 
@@ -534,7 +534,7 @@ describe('DebugLotteryRound', function() {
           resolve();
         });
       }).then(function() {
-        return pickTicket('0x11223344', accounts[1]);
+        return pickTicket('0x00112233', accounts[1]);
       }).then(function() {
         return forceClose();
       }).then(function() {
@@ -570,7 +570,7 @@ describe('DebugLotteryRound', function() {
     });
 
     it('does not allow the pot to be reclaimed when there is a winner', function() {
-      var winningPick = '0x11223344';
+      var winningPick = '0x00112233';
       return setWinningPick(winningPick).then(function(receipt) {
         assertGoodReceipt(receipt);
         return getBalance(accounts[0]);
@@ -617,7 +617,7 @@ describe('DebugLotteryRound', function() {
           resolve();
         });
       }).then(function() {
-        return pickTicket('0x11223344', accounts[1]);
+        return pickTicket('0x00112233', accounts[1]);
       }).then(function() {
         return forceClose();
       }).then(function() {
@@ -653,7 +653,7 @@ describe('DebugLotteryRound', function() {
     });
 
     it('does not allow the contract to be destroyed when there is a winner', function() {
-      var winningPick = '0x11223344';
+      var winningPick = '0x00112233';
       return setWinningPick(winningPick).then(function(receipt) {
         assertGoodReceipt(receipt);
         return getBalance(accounts[0]);
@@ -700,15 +700,15 @@ describe('DebugLotteryRound', function() {
           resolve();
         });
       }).then(function() {
-        return pickTicket('0x11223344', accounts[1]);
+        return pickTicket('0x00112233', accounts[1]);
       }).then(function() {
-        return pickTicket('0x11224433', accounts[2]);
+        return pickTicket('0x33001122', accounts[2]);
       }).then(function() {
-        return pickTicket('0x11224433', accounts[2]); // special case, 2x tickets, same account, same picks
+        return pickTicket('0x33001122', accounts[2]); // special case, 2x tickets, same account, same picks
       }).then(function() {
-        return pickTicket('0x44332211', accounts[3]);
+        return pickTicket('0x34333231', accounts[3]);
       }).then(function() {
-        return pickTicket('0x44332211', accounts[4]);
+        return pickTicket('0x34333231', accounts[4]);
       }).then(function() {
         return forceClose();
       }).then(function() {
@@ -719,7 +719,7 @@ describe('DebugLotteryRound', function() {
     });
 
     it('awards the whole pool to a single winner', function() {
-      var winningPick = '0x11223344';
+      var winningPick = '0x00112233';
       var winner = accounts[1];
       var expectedPrizeValue = expectedPrizePool;
       return setWinningPick(winningPick).then(function(receipt) {
@@ -738,7 +738,7 @@ describe('DebugLotteryRound', function() {
     });
 
     it('awards the whole pool to a winner who purchased two of the same picks', function() {
-      var winningPick = '0x11224433';
+      var winningPick = '0x33001122';
       var winner = accounts[2];
       var expectedPrizeValue = expectedPrizePool;
       return setWinningPick(winningPick).then(function(receipt) {
@@ -756,7 +756,7 @@ describe('DebugLotteryRound', function() {
     });
 
     it('splits the pot between two winners', function() {
-      var winningPick = '0x44332211';
+      var winningPick = '0x34333231';
       var winners = [accounts[3], accounts[4]];
       var expectedPrizeValue = expectedPrizePool.dividedBy(2).floor();
       return setWinningPick(winningPick).then(function(receipt) {
@@ -804,7 +804,7 @@ describe('DebugLotteryRound', function() {
           resolve();
         });
       }).then(function() {
-        return pickTicket('0x11223344', accounts[1]);
+        return pickTicket('0x00112233', accounts[1]);
       }).then(function() {
         return forceClose();
       }).then(function() {
@@ -833,7 +833,7 @@ describe('DebugLotteryRound', function() {
     });
 
     it('allows the owner fee to be withdrawn after a winner is chosen', function() {
-      var winningPick = '0x11223344';
+      var winningPick = '0x00112233';
       var output = accounts[5];
       var expectedPrizeValue = expectedPrizePool;
       return setWinningPick(winningPick).then(function() {
@@ -851,7 +851,7 @@ describe('DebugLotteryRound', function() {
     });
 
     it('does not allow the owner fee to be withdrawn multiple times', function() {
-      var winningPick = '0x11223344';
+      var winningPick = '0x00112233';
       var output = accounts[5];
       var expectedPrizeValue = expectedPrizePool;
       return setWinningPick(winningPick).then(function() {
@@ -891,9 +891,9 @@ describe('DebugLotteryRound', function() {
           resolve();
         });
       }).then(function() {
-        return pickTicket('0x44332211', accounts[1]);
+        return pickTicket('0x34333231', accounts[1]);
       }).then(function() {
-        return pickTicket('0x44332211', accounts[2]);
+        return pickTicket('0x34333231', accounts[2]);
       }).then(function() {
         return forceClose();
       }).then(function() {
@@ -910,7 +910,7 @@ describe('DebugLotteryRound', function() {
     });
 
     it('returns false when no one has been paid', function() {
-      var winningPick = '0x44332211';
+      var winningPick = '0x34333231';
       return setWinningPick(winningPick).then(function(receipt) {
         assertGoodReceipt(receipt);
         return paidOut();
@@ -920,7 +920,7 @@ describe('DebugLotteryRound', function() {
     });
 
     it('returns false when one winner has claimed their prize', function() {
-      var winningPick = '0x44332211';
+      var winningPick = '0x34333231';
       var winners = [accounts[1], accounts[2]];
       return setWinningPick(winningPick).then(function(receipt) {
         assertGoodReceipt(receipt);
@@ -934,7 +934,7 @@ describe('DebugLotteryRound', function() {
     });
 
     it('returns true when all winners have claimed their prize', function() {
-      var winningPick = '0x44332211';
+      var winningPick = '0x34333231';
       var winners = [accounts[1], accounts[2]];
       return setWinningPick(winningPick).then(function(receipt) {
         assertGoodReceipt(receipt);
@@ -951,7 +951,7 @@ describe('DebugLotteryRound', function() {
     });
 
     it('returns true when there is no winner', function() {
-      var winningPick = '0x11223344';
+      var winningPick = '0x00112233';
       return setWinningPick(winningPick).then(function(receipt) {
         assertGoodReceipt(receipt);
         return paidOut();
@@ -968,7 +968,7 @@ describe('DebugLotteryRound', function() {
     var winners;
 
     beforeEach(function(done) {
-      var winningPick = '0x44332211';
+      var winningPick = '0x34333231';
       var contractsConfig = {
         DebugLotteryRound: {
           args: [
@@ -1032,7 +1032,7 @@ describe('DebugLotteryRound', function() {
     var winners;
 
     beforeEach(function(done) {
-      var winningPick = '0x44332211';
+      var winningPick = '0x34333231';
       var contractsConfig = {
         DebugLotteryRound: {
           args: [

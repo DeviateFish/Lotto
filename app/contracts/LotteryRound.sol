@@ -3,63 +3,37 @@ pragma solidity ^0.4.8;
 import "Common.sol";
 import "LotteryRoundInterface.sol";
 
+/**
+ * The meat of the game.  Holds all the rules around picking numbers,
+ * attempting to establish good sources of entropy, holding the pre-selected
+ * entropy sources (salt) in a way that is not publicly-revealed, etc.
+ * The gist is that this is a bit of a PRNG, that advances its entropy each
+ * time a ticket is picked.
+ *
+ * Provides the means to both pick specific numbers or have the PRNG select
+ * them for the ticketholder.
+ *
+ * Also controls payout of winners for a particular round.
+ */
 contract LotteryRound is LotteryRoundInterface, Owned {
 
-  modifier beforeClose {
-    if (block.number > closingBlock) {
-      throw;
-    }
-    _;
-  }
-
-  modifier beforeDraw {
-    if (block.number <= closingBlock || winningNumbersPicked) {
-      throw;
-    }
-    _;
-  }
-
-  modifier afterDraw {
-    if (winningNumbersPicked == false) {
-      throw;
-    }
-    _;
-  }
-
-  event LotteryRoundStarted(
-    bytes32 saltHash,
-    bytes32 saltNHash,
-    uint256 closingBlock,
-    string version
-  );
-  event LotteryRoundDraw(
-    address indexed ticketHolder,
-    bytes4 indexed picks
-  );
-  event LotteryRoundCompleted(
-    bytes32 salt,
-    uint8 N,
-    bytes4 indexed winningPicks
-  );
-  event LotteryRoundWinner(
-    address indexed ticketHolder,
-    bytes4 indexed picks
-  );
-
   /*
-    Public static variables
+    Constants
    */
   // public version string
-  string public VERSION = '0.1.0';
+  string constant VERSION = '0.1.0';
 
   // round length
-  uint256 public ROUND_LENGTH = 12500;  // just over two days
+  uint256 constant ROUND_LENGTH = 43200;  // approximately a week
 
   // payout fraction (in thousandths):
-  uint256 public PAYOUT_FRACTION = 950;
+  uint256 constant PAYOUT_FRACTION = 950;
 
   // Cost per ticket
-  uint public TICKET_PRICE = 1 finney;
+  uint constant TICKET_PRICE = 1 finney;
+
+  // valid pick mask
+  bytes1 constant PICK_MASK = 0x3f; // 0-63
 
   /*
     Public variables
@@ -110,6 +84,56 @@ contract LotteryRound is LotteryRoundInterface, Owned {
   // This will be the sha3 hash of the previous entropy + some additional inputs (e.g. randomly-generated hashes, etc)
   bytes32 private accumulatedEntropy;
 
+  modifier beforeClose {
+    if (block.number > closingBlock) {
+      throw;
+    }
+    _;
+  }
+
+  modifier beforeDraw {
+    if (block.number <= closingBlock || winningNumbersPicked) {
+      throw;
+    }
+    _;
+  }
+
+  modifier afterDraw {
+    if (winningNumbersPicked == false) {
+      throw;
+    }
+    _;
+  }
+
+  // Emitted when the round starts, broadcasting the hidden entropy params, closing block
+  // and game version.
+  event LotteryRoundStarted(
+    bytes32 saltHash,
+    bytes32 saltNHash,
+    uint256 closingBlock,
+    string version
+  );
+
+  // Broadcasted any time a user purchases a ticket.
+  event LotteryRoundDraw(
+    address indexed ticketHolder,
+    bytes4 indexed picks
+  );
+
+  // Broadcast when the round is completed, revealing the hidden entropy sources
+  // and the winning picks.
+  event LotteryRoundCompleted(
+    bytes32 salt,
+    uint8 N,
+    bytes4 indexed winningPicks
+  );
+
+  // Broadcast for each winner.
+  event LotteryRoundWinner(
+    address indexed ticketHolder,
+    bytes4 indexed picks
+  );
+
   /**
    * Creates a new Lottery round, and sets the round's parameters.
    *
@@ -137,6 +161,15 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     accumulatedEntropy = block.blockhash(block.number - 1);
   }
 
+  /**
+   * Attempt to generate a new pseudo-random number, while advancing the internal entropy
+   * of the contract.  Uses a two-phase approach: first, generates a simple offset [0-255]
+   * from simple entropy sources (accumulated, sender, block number).  Uses this offset
+   * to index into the history of blockhashes, to attempt to generate some stronger entropy
+   * by including previous block hashes.
+   *
+   * Then advances the interal entropy by rehashing it with the chosen number.
+   */
   function generatePseudoRand() internal returns(bytes32) {
     uint8 pseudoRandomOffset = uint8(uint256(sha256(
       msg.sender,
@@ -166,7 +199,7 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     }
     // don't allow invalid picks.
     for (uint8 i = 0; i < 4; i++) {
-      if (picks[i] & 0x7f != picks[i]) {
+      if (picks[i] & PICK_MASK != picks[i]) {
         throw;
       }
     }
@@ -176,17 +209,33 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     LotteryRoundDraw(msg.sender, picks);
   }
 
+  /**
+   * Interal function to generate valid picks.  Used by both the random
+   * ticket functionality, as well as when generating winning picks.
+   * Even though the picks are a fixed-width byte array, each pick is
+   * chosen separately (e.g. a bytes4 will result in 4 separate sha3 hashes
+   * used as sources).
+   *
+   * Masks the first byte of the seed to use as an offset into the next PRNG,
+   * then replaces the seed with the new PRNG.  Pulls a single byte from the
+   * resultant offset, masks it to be valid, then adds it to the accumulator.
+   *
+   * @param seed  The PRNG seed used to pick the numbers.
+   */
   function pickValues(bytes32 seed) internal returns (bytes4) {
     bytes4 picks;
     uint8 offset;
     for (uint8 i = 0; i < 4; i++) {
       offset = uint8(seed[0]) & 0x1f;
       seed = sha3(seed, msg.sender);
-      picks = (picks >> 8) | bytes1(uint8(seed[offset]) & 0x7f);
+      picks = (picks >> 8) | bytes1(seed[offset] & PICK_MASK);
     }
     return picks;
   }
 
+  /**
+   * Picks a random ticket, using the internal PRNG and accumulated entropy
+   */
   function randomTicket() payable beforeClose {
     if (msg.value != TICKET_PRICE) {
       throw;
@@ -198,7 +247,15 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     LotteryRoundDraw(msg.sender, picks);
   }
 
-  // TODO: Make internal, maybe?
+  /**
+   * Public means to prove the salt after numbers are picked.  Not technically necessary
+   * for this to be external, because it will be called during the round close process.
+   * If the hidden entropy parameters don't match, the contract will refuse to pick
+   * numbers or close.
+   *
+   * @param salt          Hidden entropy source
+   * @param N             Secret value proving how to obtain the hashed entropy from the source.
+   */
   function proofOfSalt(bytes32 salt, uint8 N) constant returns(bool) {
     // Proof-of-N:
     bytes32 _saltNHash = sha3(salt, N, salt);
@@ -217,6 +274,15 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     return true;
   }
 
+  /**
+   * Internal function to handle tabulating the winners, including edge cases around
+   * duplicate winners.  Split out into its own method partially to enable proper
+   * testing.
+   *
+   * @param salt          Hidden entropy source.  Emitted here
+   * @param N             Key to the hidden entropy source.
+   * @param winningPicks  The winning picks.
+   */
   function finalizeRound(bytes32 salt, uint8 N, bytes4 winningPicks) internal {
     winningNumbers = winningPicks;
     winningNumbersPicked = true;
@@ -245,6 +311,15 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     // we done.
   }
 
+  /**
+   * Reveal the secret sources of entropy, then use them to pick winning numbers.
+   *
+   * Note that by using no dynamic (e.g. blockhash-based) sources of entropy,
+   * censoring this transaction will not change the final outcome of the picks.
+   *
+   * @param salt          Hidden entropy.
+   * @param N             Number of times to hash the hidden entropy to produce the value provided at creation.
+   */
   function closeGame(bytes32 salt, uint8 N) onlyOwner beforeDraw {
     // Don't allow picking numbers multiple times.
     if (winningNumbersPicked == true) {
@@ -256,23 +331,21 @@ contract LotteryRound is LotteryRoundInterface, Owned {
       throw;
     }
 
-    uint8 pseudoRandomOffset = uint8(uint256(sha256(
-      salt,
-      accumulatedEntropy
-    )) & 0xff);
-    // WARNING: This assumes block.number > 256... If block.number < 256, the below block.blockhash could return 0
-    // This is probably only an issue in testing, but shouldn't be a problem there.
-    uint256 pseudoRandomBlock = block.number - pseudoRandomOffset - 1;
     bytes32 pseudoRand = sha3(
       salt,
-      block.blockhash(pseudoRandomBlock),
+      nTickets,
       accumulatedEntropy
     );
     finalizeRound(salt, N, pickValues(pseudoRand));
   }
 
-  // Send the owner's portion to an address of their discretion.
-  // Also clears the owner fee, so the fee can only be withdrawn once.
+  /**
+   * Sends the owner's fee to the specified address.  Note that the
+   * owner can only be paid if there actually was a winner. In the
+   * event no one wins, the entire balance is carried over into the
+   * next round.  No double-dipping here.
+   * @param payout        Address to send the owner fee to.
+   */
   function claimOwnerFee(address payout) onlyOwner afterDraw {
     if (ownerFee > 0) {
       uint256 value = ownerFee;
@@ -283,7 +356,11 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     }
   }
 
-  // Override this so we can only withdraw the surplus, and after everyone's been paid.
+  /**
+   * Used to withdraw the balance when the round is completed.  This
+   * only works if there are either no winners, or all winners + the
+   * owner have been paid.
+   */
   function withdraw() onlyOwner afterDraw {
     if (paidOut() && ownerFee == 0) {
       if (!owner.send(this.balance)) {
@@ -292,16 +369,20 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     }
   }
 
-  // Override this one, too, so that we can only shut this thing down if there are either no winners,
-  // or the winners have all been paid.  Once everything is paid out, there might be a few wei in here due to
-  // rounding errors, etc, so we use this to clean that shit up. This performs the same function as `withdraw`, but
-  // also shuts down the contract.
+  /**
+   * Same as above.  This is mostly here because it's overriding the method
+   * inherited from `Owned`
+   */
   function shutdown() onlyOwner afterDraw {
     if (paidOut() && ownerFee == 0) {
       selfdestruct(owner);
     }
   }
 
+  /**
+   * Attempt to pay the winners, if any.  If any `send`s fail, the winner
+   * will have to collect their winnings on their own.
+   */
   function distributeWinnings() onlyOwner afterDraw {
     if (winners.length > 0) {
       for (uint i = 0; i < winners.length; i++) {
@@ -344,6 +425,12 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     }
   }
 
+  /**
+   * Winners can claim their own prizes using this.  If they do
+   * something stupid like use a contract, this gives them a
+   * a second chance at withdrawing their funds.  Note that
+   * this shares an interlock with `distributeWinnings`.
+   */
   function claimPrize() afterDraw {
     if (winningsClaimable[msg.sender] == false) {
       // get. out!

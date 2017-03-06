@@ -4,6 +4,10 @@ import "Common.sol";
 import "DebugLotteryRound.sol";
 import "LotteryRoundFactoryInterface.sol";
 
+/**
+ * Exactly identical to LotteryRoundFactory, but produces DebugLotteryRounds,
+ * rather than LotteryRounds.
+ */
 contract DebugLotteryRoundFactory is LotteryRoundFactoryInterfaceV1, Owned {
 
   string public VERSION = '0.1.0';

@@ -5,6 +5,15 @@ import "LotteryRoundFactoryInterface.sol";
 import "LotteryRoundInterface.sol";
 import "LotteryGameLogicInterface.sol";
 
+/**
+ * Core game logic.  Handlings management of rounds, carry-over balances,
+ * paying winners, etc.  Separate from the main contract because it's more
+ * tightly-coupled to the factory/round logic than the game logic.  This
+ * allows for new rules in the future (e.g. partial picks, etc).  Carries
+ * the caveat that it cannot be upgraded until the current rules produce
+ * a winner, and can only be upgraded in the period between a winner under
+ * the current rules and the next round being started.
+ */
 contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
 
   LotteryRoundFactoryInterfaceV1 public roundFactory;
@@ -58,8 +67,8 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
   /**
    * Creates the core logic of the lottery.  Requires a round factory
    * and an initial curator.
-   * @param _roundFactory        The factory to generate new rounds
-   * @param _curator             The initial curator
+   * @param _roundFactory  The factory to generate new rounds
+   * @param _curator       The initial curator
    */
   function LotteryGameLogic(address _roundFactory, address _curator) {
     roundFactory = LotteryRoundFactoryInterfaceV1(_roundFactory);
@@ -68,7 +77,7 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
 
   /**
    * Allows the curator to hand over curation responsibilities to someone else.
-   * @param newCurator            The new curator
+   * @param newCurator  The new curator
    */
   function setCurator(address newCurator) onlyCurator onlyWhenNoRound {
     curator = newCurator;
@@ -85,8 +94,8 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
   /**
    * Starts a new round.  Can only be started by the curator, and only when there is no round
    * currently underway
-   * @param  saltHash          Secret salt, hashed N times.
-   * @param  saltNHash         Proof of N, in the form of sha3(salt, N, salt)
+   * @param saltHash    Secret salt, hashed N times.
+   * @param saltNHash   Proof of N, in the form of sha3(salt, N, salt)
    */
   function startRound(bytes32 saltHash, bytes32 saltNHash) onlyCurator onlyWhenNoRound {
     if (this.balance > 0) {
@@ -101,8 +110,8 @@ contract LotteryGameLogic is LotteryGameLogicInterfaceV1, Owned {
   /**
    * Reveal the chosen salt and number of hash iterations, then close the current roundn
    * and pick the winning numbers
-   * @param  salt              The original salt
-   * @param  N                 The original N
+   * @param salt   The original salt
+   * @param N      The original N
    */
   function closeRound(bytes32 salt, uint8 N) onlyCurator onlyBeforeDraw {
     currentRound.closeGame(salt, N);
