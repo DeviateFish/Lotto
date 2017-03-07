@@ -2,7 +2,7 @@
 
 A simple (but upgradeable) lottery contract on Ethereum.
 
-Deployed at `0x80616F35Df2ef0CB42280a629761e0350FaFd679`
+Deployed at `0xDB88602945F35828baE3cA90AAd007Ef85A350f6`
 
 ## Current rules:
 
@@ -10,8 +10,11 @@ Deployed at `0x80616F35Df2ef0CB42280a629761e0350FaFd679`
 - Number of picks: 4
 - Range of picks: 0-63 (2^6)
 - Round length: 43,200 blocks (~7 days)
+- Owner fee: 5%
 
 Tickets can be purchased from the current round by sending the ticket price to either the `pickTicket` or `randomTicket` methods.  For `pickTicket`, the picks must be expressed as a 4-byte hexadecimal number (e.g. `0x01020304`).
+
+At the close of a round, the hidden entropy source is revealed, and winning numbers picked.  If your picks match the winning number, you win a share of the pot (proportional to the number of winners).  The current odds stand somewhere around 1:16M (1 in (2^6)^4)
 
 ## ABIs:
 
@@ -32,6 +35,10 @@ LotteryRound ABI:
 To play, watch the Lotto contract with the provided Lotto ABI.  Query the contract for the current round, and watch this address with the `LotteryRound` ABI.
 
 If you'd like, you can watch the contract for events, as well.
+
+To pick tickets, call `pickTicket`, send along 1 finney (the current ticket price) and specify your 4 picks (0-63) as a 4-byte hexadecimal number (e.g. `0x01020304`).  Picks must be between 0 and 63 (inclusive, and in hex: `0x00` to `0x3f`).
+
+To get a randomly-selected ticket, call `randomTicket`, sending along 1 finney (the current ticket price).
 
 ## Playing with Mist:
 

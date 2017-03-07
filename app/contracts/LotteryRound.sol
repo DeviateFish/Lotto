@@ -21,7 +21,7 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     Constants
    */
   // public version string
-  string constant VERSION = '0.1.0';
+  string constant VERSION = '0.1.1';
 
   // round length
   uint256 constant ROUND_LENGTH = 43200;  // approximately a week
@@ -63,9 +63,9 @@ contract LotteryRound is LotteryRoundInterface, Owned {
   mapping(address => bool) public winningsClaimable;
 
   /**
-   * Current picks are from 0 to 127, or 2^7 - 1.
+   * Current picks are from 0 to 63, or 2^6 - 1.
    * Current number of picks is 4
-   * Rough odds of winning will be 1 in (2^7)^4, assuming even distributions, etc
+   * Rough odds of winning will be 1 in (2^6)^4, assuming even distributions, etc
    */
   mapping(bytes4 => address[]) public tickets;
   uint256 public nTickets = 0;
