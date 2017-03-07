@@ -13,7 +13,7 @@
     ],
     "name": "startRound",
     "outputs": [
-      
+
     ],
     "payable": false,
     "type": "function"
@@ -21,7 +21,7 @@
   {
     "constant": true,
     "inputs": [
-      
+
     ],
     "name": "isUpgradeAllowed",
     "outputs": [
@@ -36,7 +36,7 @@
   {
     "constant": false,
     "inputs": [
-      
+
     ],
     "name": "finalizeRound",
     "outputs": [
@@ -51,11 +51,11 @@
   {
     "constant": false,
     "inputs": [
-      
+
     ],
     "name": "withdraw",
     "outputs": [
-      
+
     ],
     "payable": false,
     "type": "function"
@@ -63,7 +63,7 @@
   {
     "constant": true,
     "inputs": [
-      
+
     ],
     "name": "roundFactory",
     "outputs": [
@@ -78,7 +78,7 @@
   {
     "constant": true,
     "inputs": [
-      
+
     ],
     "name": "currentRound",
     "outputs": [
@@ -104,7 +104,7 @@
     ],
     "name": "closeRound",
     "outputs": [
-      
+
     ],
     "payable": false,
     "type": "function"
@@ -112,11 +112,11 @@
   {
     "constant": false,
     "inputs": [
-      
+
     ],
     "name": "deposit",
     "outputs": [
-      
+
     ],
     "payable": true,
     "type": "function"
@@ -124,7 +124,7 @@
   {
     "constant": true,
     "inputs": [
-      
+
     ],
     "name": "curator",
     "outputs": [
@@ -146,7 +146,7 @@
     ],
     "name": "setCurator",
     "outputs": [
-      
+
     ],
     "payable": false,
     "type": "function"
@@ -161,7 +161,7 @@
     ],
     "name": "transferOwnership",
     "outputs": [
-      
+
     ],
     "payable": false,
     "type": "function"
@@ -169,11 +169,11 @@
   {
     "constant": false,
     "inputs": [
-      
+
     ],
     "name": "shutdown",
     "outputs": [
-      
+
     ],
     "payable": false,
     "type": "function"

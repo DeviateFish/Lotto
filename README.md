@@ -2,7 +2,7 @@
 
 A simple (but upgradeable) lottery contract on Ethereum.
 
-Deployed at ``
+Deployed at `0x80616F35Df2ef0CB42280a629761e0350FaFd679`
 
 ## Current rules:
 

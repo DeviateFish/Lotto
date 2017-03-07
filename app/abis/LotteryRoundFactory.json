@@ -1,74 +1,24 @@
 [
   {
-    "constant": true,
-    "inputs": [
-
-    ],
-    "name": "winningNumbers",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes4"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-
-    ],
-    "name": "closingBlock",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-
-    ],
-    "name": "winningNumbersPicked",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-
-    ],
-    "name": "randomTicket",
-    "outputs": [
-
-    ],
-    "payable": true,
-    "type": "function"
-  },
-  {
     "constant": false,
     "inputs": [
       {
-        "name": "payout",
+        "name": "_saltHash",
+        "type": "bytes32"
+      },
+      {
+        "name": "_saltNHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "createRound",
+    "outputs": [
+      {
+        "name": "",
         "type": "address"
       }
     ],
-    "name": "claimOwnerFee",
-    "outputs": [
-
-    ],
-    "payable": false,
+    "payable": true,
     "type": "function"
   },
   {
@@ -79,249 +29,6 @@
     "name": "withdraw",
     "outputs": [
 
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-
-    ],
-    "name": "saltNHash",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-
-    ],
-    "name": "nTickets",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-
-    ],
-    "name": "paidOut",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-
-    ],
-    "name": "saltHash",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      {
-        "name": "",
-        "type": "bytes4"
-      },
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "tickets",
-    "outputs": [
-      {
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-
-    ],
-    "name": "claimPrize",
-    "outputs": [
-
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-
-    ],
-    "name": "prizePool",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-
-    ],
-    "name": "distributeWinnings",
-    "outputs": [
-
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-      {
-        "name": "salt",
-        "type": "bytes32"
-      },
-      {
-        "name": "N",
-        "type": "uint8"
-      }
-    ],
-    "name": "closeGame",
-    "outputs": [
-
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-
-    ],
-    "name": "prizeValue",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "winners",
-    "outputs": [
-      {
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-      {
-        "name": "picks",
-        "type": "bytes4"
-      }
-    ],
-    "name": "pickTicket",
-    "outputs": [
-
-    ],
-    "payable": true,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      {
-        "name": "salt",
-        "type": "bytes32"
-      },
-      {
-        "name": "N",
-        "type": "uint8"
-      }
-    ],
-    "name": "proofOfSalt",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-
-    ],
-    "name": "ownerFee",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      {
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "winningsClaimable",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
     ],
     "payable": false,
     "type": "function"
@@ -354,18 +61,19 @@
     "type": "function"
   },
   {
+    "constant": true,
     "inputs": [
+
+    ],
+    "name": "VERSION",
+    "outputs": [
       {
-        "name": "_saltHash",
-        "type": "bytes32"
-      },
-      {
-        "name": "_saltNHash",
-        "type": "bytes32"
+        "name": "",
+        "type": "string"
       }
     ],
-    "payable": true,
-    "type": "constructor"
+    "payable": false,
+    "type": "function"
   },
   {
     "payable": false,
@@ -376,18 +84,8 @@
     "inputs": [
       {
         "indexed": false,
-        "name": "saltHash",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
-        "name": "saltNHash",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
-        "name": "closingBlock",
-        "type": "uint256"
+        "name": "newRound",
+        "type": "address"
       },
       {
         "indexed": false,
@@ -395,63 +93,7 @@
         "type": "string"
       }
     ],
-    "name": "LotteryRoundStarted",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "name": "ticketHolder",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "name": "picks",
-        "type": "bytes4"
-      }
-    ],
-    "name": "LotteryRoundDraw",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "name": "salt",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
-        "name": "N",
-        "type": "uint8"
-      },
-      {
-        "indexed": true,
-        "name": "winningPicks",
-        "type": "bytes4"
-      }
-    ],
-    "name": "LotteryRoundCompleted",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "name": "ticketHolder",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "name": "picks",
-        "type": "bytes4"
-      }
-    ],
-    "name": "LotteryRoundWinner",
+    "name": "LotteryRoundCreated",
     "type": "event"
   }
 ]
