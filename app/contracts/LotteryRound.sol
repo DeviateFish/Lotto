@@ -125,7 +125,8 @@ contract LotteryRound is LotteryRoundInterface, Owned {
   event LotteryRoundCompleted(
     bytes32 salt,
     uint8 N,
-    bytes4 indexed winningPicks
+    bytes4 indexed winningPicks,
+    uint256 closingBalance
   );
 
   // Broadcast for each winner.
@@ -286,7 +287,7 @@ contract LotteryRound is LotteryRoundInterface, Owned {
   function finalizeRound(bytes32 salt, uint8 N, bytes4 winningPicks) internal {
     winningNumbers = winningPicks;
     winningNumbersPicked = true;
-    LotteryRoundCompleted(salt, N, winningNumbers);
+    LotteryRoundCompleted(salt, N, winningNumbers, this.balance);
 
     var _winners = tickets[winningNumbers];
     // if we have winners:
