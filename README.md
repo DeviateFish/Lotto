@@ -2,7 +2,7 @@
 
 A simple (but upgradeable) lottery contract on Ethereum.
 
-Deployed at `0xDB88602945F35828baE3cA90AAd007Ef85A350f6`
+Deployed at [`0x58B79dFe37D3eD6b44582fb0C6591680C3d51DB8`](https://etherscan.io/address/0x58B79dFe37D3eD6b44582fb0C6591680C3d51DB8)
 
 ## Current rules:
 

@@ -21,7 +21,7 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     Constants
    */
   // public version string
-  string constant VERSION = '0.1.1';
+  string constant VERSION = '0.1.2';
 
   // round length
   uint256 constant ROUND_LENGTH = 43200;  // approximately a week
@@ -171,10 +171,12 @@ contract LotteryRound is LotteryRoundInterface, Owned {
    *
    * Then advances the interal entropy by rehashing it with the chosen number.
    */
-  function generatePseudoRand() internal returns(bytes32) {
+  function generatePseudoRand(bytes32 seed) internal returns(bytes32) {
     uint8 pseudoRandomOffset = uint8(uint256(sha256(
-      msg.sender,
-      block.number,
+      seed,
+      block.difficulty,
+      block.coinbase,
+      block.timestamp,
       accumulatedEntropy
     )) & 0xff);
     // WARNING: This assumes block.number > 256... If block.number < 256, the below block.blockhash could return 0
@@ -183,7 +185,8 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     bytes32 pseudoRand = sha3(
       block.number,
       block.blockhash(pseudoRandomBlock),
-      msg.sender,
+      block.difficulty,
+      block.timestamp,
       accumulatedEntropy
     );
     accumulatedEntropy = sha3(accumulatedEntropy, pseudoRand);
@@ -206,7 +209,7 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     }
     tickets[picks].push(msg.sender);
     nTickets++;
-    generatePseudoRand(); // advance the accumulated entropy
+    generatePseudoRand(bytes32(picks)); // advance the accumulated entropy
     LotteryRoundDraw(msg.sender, picks);
   }
 
@@ -241,7 +244,7 @@ contract LotteryRound is LotteryRoundInterface, Owned {
     if (msg.value != TICKET_PRICE) {
       throw;
     }
-    bytes32 pseudoRand = generatePseudoRand();
+    bytes32 pseudoRand = generatePseudoRand(bytes32(msg.sender));
     bytes4 picks = pickValues(pseudoRand);
     tickets[picks].push(msg.sender);
     nTickets++;

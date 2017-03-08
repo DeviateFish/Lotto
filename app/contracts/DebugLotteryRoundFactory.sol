@@ -10,7 +10,7 @@ import "LotteryRoundFactoryInterface.sol";
  */
 contract DebugLotteryRoundFactory is LotteryRoundFactoryInterfaceV1, Owned {
 
-  string public VERSION = '0.1.1';
+  string public VERSION = '0.1.2';
 
   event LotteryRoundCreated(
     address newRound,

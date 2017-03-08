@@ -58,7 +58,7 @@ describe('DebugLotteryRoundFactory', function() {
     return getEvent(DebugLotteryRoundFactory, 'LotteryRoundCreated', blockNumber).then(function(results) {
       assert.equal(results.length, 1, 'One event emitted from DebugLotteryRoundFactory');
       var result = results[0];
-      assert.equal(result.args.version, '0.1.0');
+      assert.equal(result.args.version, '0.1.2');
       return result.args.newRound;
     });
   }

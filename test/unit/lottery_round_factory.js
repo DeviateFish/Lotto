@@ -54,13 +54,13 @@ describe('LotteryRoundFactory', function() {
 
   var accounts;
   var roundLength = 43200;
-  var version = '0.1.0';
+  var version = '0.1.2';
 
   function validateCreatedEvent(version, blockNumber) {
     return getEvent(LotteryRoundFactory, 'LotteryRoundCreated', blockNumber).then(function(results) {
       assert.equal(results.length, 1, 'One event emitted from LotteryRoundFactory');
       var result = results[0];
-      assert.equal(result.args.version, '0.1.0');
+      assert.equal(result.args.version, '0.1.2');
       return result.args.newRound;
     });
   }
